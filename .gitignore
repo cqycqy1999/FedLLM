@@ -1,0 +1,16 @@
+*.jsonl
+*.json
+*.pt
+*.pth
+*.ckpt
+*.bin
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.ipynb_checkpoints/
+.DS_Store
+.vscode/
+.idea/
+*.log

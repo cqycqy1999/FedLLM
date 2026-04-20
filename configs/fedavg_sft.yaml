@@ -1,0 +1,48 @@
+task: sft
+output_dir: outputs/fedavg_sft_lora_realdata
+seed: 42
+
+model:
+  model_name_or_path: gpt2
+  tokenizer_name_or_path: gpt2
+  trust_remote_code: false
+  torch_dtype: float32
+  use_flash_attn: false
+  gradient_checkpointing: false
+
+peft:
+  method: lora
+  r: 8
+  alpha: 16
+  dropout: 0.05
+  target_modules:
+    - c_attn
+    - c_proj
+
+federated:
+  algorithm: fedavg
+  num_clients: 4
+  clients_per_round: 2
+  rounds: 3
+  local_epochs: 1
+  local_steps: 2
+  sample_mode: uniform
+
+data:
+  task: sft
+  data_path: data/sft_train.jsonl
+  file_type: jsonl
+  partitioner: iid
+  partition_seed: 42
+  prompt_field: prompt
+  response_field: response
+
+eval:
+  eval_every: 1
+  save_every: 1
+
+sft:
+  max_length: 128
+  lr: 1.0e-4
+  batch_size: 2
+  grad_accum_steps: 1
