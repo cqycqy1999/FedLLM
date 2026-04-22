@@ -2,6 +2,7 @@
 *.json
 *.pt
 *.pth
+*.safetensors
 *.ckpt
 *.bin
 __pycache__/

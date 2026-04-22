@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import torch
 
 from fedpost.federation.message import BroadcastPayload
 
@@ -33,9 +32,15 @@ class Server:
         self.global_step += 1
         return agg_metrics
 
+    def export_round_artifacts(self, round_idx: int) -> dict[str, str]:
+        round_dir = os.path.join(self.cfg.output_dir, "exports", f"round_{round_idx + 1}")
+        return self.model_manager.export_round_artifacts(self.model_bundle, round_dir)
+
     def save_checkpoint(self, path: str):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         trainable_state = self.model_manager.get_trainable_state(self.model_bundle.model)
+
+        import torch
         torch.save(
             {
                 "round_idx": self.round_idx,

@@ -19,6 +19,14 @@ class Client:
         self._algo_state = payload.algo_state
         self.trainer.set_trainable_state(payload.model_state)
 
+    def run_round(self, payload, device=None) -> TrainResult:
+        self.trainer.activate_device(device)
+        try:
+            self.receive_broadcast(payload)
+            return self.local_train()
+        finally:
+            self.trainer.release_device()
+
     def local_train(self) -> TrainResult:
         try:
             update, metrics = self.trainer.train_one_round(

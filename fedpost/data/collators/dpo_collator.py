@@ -34,8 +34,7 @@ class DPOCollator:
         for i, prompt_ids in enumerate(encoded_prompt["input_ids"]):
             prompt_len = min(len(prompt_ids), response_mask.shape[1])
             response_mask[i, prompt_len:] = 1
-            if "attention_mask" in encoded_full:
-                response_mask[i] = response_mask[i] * encoded_full["attention_mask"][i]
+            response_mask[i] = response_mask[i] * encoded_full["attention_mask"][i]
 
         return {
             "input_ids": encoded_full["input_ids"],

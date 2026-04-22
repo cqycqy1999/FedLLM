@@ -5,7 +5,7 @@ from fedpost.algorithms.fedavg import FedAvgAggregator
 from fedpost.data.collators.dpo_collator import DPOCollator
 from fedpost.data.collators.sft_collator import SFTCollator
 from fedpost.data.dataset_builder import DatasetBuilder
-from fedpost.evaluation.dpo_eval import DPOPairwiseEvaluator
+from fedpost.evaluation.dpo_eval import DPOComboEvaluator
 from fedpost.evaluation.sft_eval import SFTGenerationEvaluator
 from fedpost.federation.client import Client
 from fedpost.federation.coordinator import Coordinator
@@ -96,4 +96,4 @@ class Launcher:
     def _build_evaluator(self, tokenizer):
         if self.cfg.task == "sft":
             return SFTGenerationEvaluator(self.cfg, tokenizer)
-        return DPOPairwiseEvaluator(self.cfg, tokenizer)
+        return DPOComboEvaluator(self.cfg, tokenizer)

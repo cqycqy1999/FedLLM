@@ -7,5 +7,5 @@ class Evaluator:
         self.tokenizer = tokenizer
         self.logger = logger
 
-    def evaluate(self, model, round_idx: int):
+    def evaluate(self, model, round_idx: int, model_artifacts: dict | None = None):
         raise NotImplementedError

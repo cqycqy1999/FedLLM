@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Any
 import yaml
 import os
@@ -35,6 +35,8 @@ class FederatedConfig:
     local_epochs: int = 1
     local_steps: Optional[int] = None
     sample_mode: str = "uniform"
+    gpu_ids: list[int] = field(default_factory=list)
+    max_parallel_clients: Optional[int] = None
 
 
 @dataclass
@@ -59,21 +61,28 @@ class DPOConfig:
 @dataclass
 class DataConfig:
     task: str = "sft"
-    data_path: str = ""
-    file_type: str = "jsonl"   # json / jsonl
+    source: str = "hf"          # hf / local
+    dataset_name: str = ""
+    dataset_split: str = "train"
     partitioner: str = "iid"
     partition_seed: int = 42
-
-    prompt_field: str = "prompt"
-    response_field: str = "response"
-    chosen_field: str = "chosen"
-    rejected_field: str = "rejected"
+    max_samples: Optional[int] = None
 
 
 @dataclass
 class EvalConfig:
     eval_every: int = 1
     save_every: int = 1
+    evaluator_type: str = "alpaca_eval"
+
+    run_alpaca_eval: bool = False
+    alpaca_eval_model_name: str = "fedpost_model"
+
+    run_mt_bench: bool = False
+    mt_bench_model_id: str = "fedpost_model"
+
+    run_lm_eval: bool = False
+    lm_eval_tasks: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -120,6 +129,12 @@ class ConfigLoader:
         if cfg.federated.clients_per_round > cfg.federated.num_clients:
             raise ValueError("clients_per_round cannot exceed num_clients")
 
+        if any(gpu_id < 0 for gpu_id in cfg.federated.gpu_ids):
+            raise ValueError("gpu_ids must contain non-negative integers only")
+
+        if cfg.federated.max_parallel_clients is not None and cfg.federated.max_parallel_clients <= 0:
+            raise ValueError("max_parallel_clients must be positive when provided")
+
         if cfg.task == "sft" and cfg.sft is None:
             raise ValueError("SFT config is required when task='sft'")
 
@@ -129,11 +144,5 @@ class ConfigLoader:
         if cfg.peft.method == "lora" and not cfg.peft.target_modules:
             raise ValueError("LoRA requires non-empty target_modules")
 
-        if not cfg.data.data_path:
-            raise ValueError("data.data_path is required")
-
-        if cfg.data.file_type not in {"json", "jsonl"}:
-            raise ValueError("data.file_type must be one of {'json', 'jsonl'}")
-
-        if not os.path.exists(cfg.data.data_path):
-            raise FileNotFoundError(f"Data file not found: {cfg.data.data_path}")
+        if cfg.data.source != "hf":
+            raise ValueError("This upgraded template currently supports data.source='hf' only.")

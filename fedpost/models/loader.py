@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+import os
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -12,6 +13,9 @@ from fedpost.models.peft_utils import (
     export_peft_state,
     get_trainable_keys,
     load_peft_state,
+    save_adapter_pretrained,
+    save_adapter_state,
+    save_merged_pretrained,
     validate_lora_targets,
 )
 from fedpost.models.reference_model import ReferenceModelManager
@@ -84,10 +88,10 @@ class HFModelManager:
         state_type = "adapter_only" if self.cfg.peft.method == "lora" else "full"
 
         return ModelStateSpec(
-            state_type="full",
+            state_type=state_type,
             trainable_keys=trainable_keys,
             aggregatable_keys=trainable_keys,
-            frozen_keys=[],
+            frozen_keys=frozen_keys,
         )
 
     def get_trainable_state(self, model) -> dict[str, Any]:
@@ -118,6 +122,49 @@ class HFModelManager:
                 continue
             param = named_params[key]
             param.data.copy_(value.to(param.device, dtype=param.dtype))
+
+    def export_round_artifacts(self, model_bundle: ModelBundle, round_dir: str) -> dict[str, str]:
+        os.makedirs(round_dir, exist_ok=True)
+        model = model_bundle.model
+        tokenizer = model_bundle.tokenizer
+
+        artifacts = {}
+
+        if self.cfg.peft.method == "lora":
+            adapter_state_path = os.path.join(round_dir, "adapter_state.pt")
+            adapter_dir = os.path.join(round_dir, "adapter_model")
+            merged_dir = os.path.join(round_dir, "merged_model")
+
+            save_adapter_state(
+                model,
+                path=adapter_state_path,
+                adapter_name=self.cfg.peft.adapter_name,
+            )
+            save_adapter_pretrained(
+                model,
+                tokenizer=tokenizer,
+                output_dir=adapter_dir,
+            )
+            save_merged_pretrained(
+                base_model_name_or_path=self.cfg.model.model_name_or_path,
+                adapter_dir=adapter_dir,
+                output_dir=merged_dir,
+                torch_dtype=self._parse_dtype(self.cfg.model.torch_dtype),
+                trust_remote_code=self.cfg.model.trust_remote_code,
+                tokenizer=tokenizer,
+            )
+
+            artifacts["adapter_state_path"] = adapter_state_path
+            artifacts["adapter_dir"] = adapter_dir
+            artifacts["merged_model_dir"] = merged_dir
+            return artifacts
+
+        # full fine-tuning fallback
+        merged_dir = os.path.join(round_dir, "merged_model")
+        model.save_pretrained(merged_dir)
+        tokenizer.save_pretrained(merged_dir)
+        artifacts["merged_model_dir"] = merged_dir
+        return artifacts
 
     @staticmethod
     def _parse_dtype(dtype_name: str):

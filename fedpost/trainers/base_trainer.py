@@ -17,15 +17,39 @@ class BaseTrainer:
         self.collator = collator
         self.logger = logger
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Keep inactive client models on CPU; each round moves active clients onto a target device.
+        self.device = torch.device("cpu")
         self.model.to(self.device)
         if self.reference_model is not None:
             self.reference_model.to(self.device)
 
-        self.optimizer = self.build_optimizer()
+        self.optimizer = None
 
     def build_optimizer(self):
         raise NotImplementedError
+
+    def activate_device(self, device: str | torch.device | None = None) -> None:
+        target_device = self._resolve_device(device)
+        if target_device.type == "cuda":
+            torch.cuda.set_device(target_device)
+
+        self.model.to(target_device)
+        if self.reference_model is not None:
+            self.reference_model.to(target_device)
+
+        self.device = target_device
+        self.optimizer = self.build_optimizer()
+
+    def release_device(self) -> None:
+        self.optimizer = None
+        if self.device.type != "cuda":
+            return
+
+        self.model.to("cpu")
+        if self.reference_model is not None:
+            self.reference_model.to("cpu")
+        self.device = torch.device("cpu")
+        torch.cuda.empty_cache()
 
     def build_dataloader(self, dataset):
         batch_size = self.cfg.sft.batch_size if self.cfg.task == "sft" else self.cfg.dpo.batch_size
@@ -68,3 +92,9 @@ class BaseTrainer:
         if local_steps is None:
             return False
         return (step_idx + 1) >= local_steps
+
+    @staticmethod
+    def _resolve_device(device: str | torch.device | None) -> torch.device:
+        if device is not None:
+            return torch.device(device)
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
