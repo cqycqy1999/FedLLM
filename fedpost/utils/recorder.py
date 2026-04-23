@@ -1,11 +1,25 @@
 from __future__ import annotations
 
+import csv
 import json
 import os
 from dataclasses import fields, is_dataclass
 from typing import Any
 
 import torch
+
+
+def _flatten(prefix: str, obj: dict | None) -> dict:
+    if not obj:
+        return {}
+    out = {}
+    for k, v in obj.items():
+        key = f"{prefix}{k}" if prefix else k
+        if isinstance(v, dict):
+            out.update(_flatten(f"{key}/", v))
+        else:
+            out[key] = v
+    return out
 
 
 class Recorder:
@@ -15,6 +29,9 @@ class Recorder:
 
         self.round_file = os.path.join(self.output_dir, "round_metrics.jsonl")
         self.eval_file = os.path.join(self.output_dir, "eval_metrics.jsonl")
+        self.summary_file = os.path.join(self.output_dir, "summary.jsonl")
+        self.summary_csv = os.path.join(self.output_dir, "summary.csv")
+        self.best_round_file = os.path.join(self.output_dir, "best_round.json")
 
     def record_round(self, round_idx: int, round_metrics: dict, client_results: list) -> None:
         payload = {
@@ -31,6 +48,81 @@ class Recorder:
         payload = self._to_jsonable(eval_result)
         with open(self.eval_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+    def record_round_summary(
+        self,
+        round_idx: int,
+        round_metrics: dict,
+        eval_result=None,
+        model_artifacts: dict | None = None,
+        primary_metric: str | None = None,
+    ) -> None:
+        row = {
+            "round": round_idx + 1,
+            **_flatten("train/", round_metrics),
+        }
+
+        if eval_result is not None:
+            row.update(_flatten("eval/", getattr(eval_result, "metrics", {})))
+            row.update(_flatten("artifact/", getattr(eval_result, "artifacts", {})))
+
+        if model_artifacts:
+            row.update(_flatten("export/", model_artifacts))
+
+        with open(self.summary_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+        self._rewrite_summary_csv()
+        if primary_metric:
+            self._update_best_round(primary_metric)
+
+    def _read_summary_rows(self) -> list[dict]:
+        rows = []
+        if not os.path.exists(self.summary_file):
+            return rows
+        with open(self.summary_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                rows.append(json.loads(line))
+        return rows
+
+    def _rewrite_summary_csv(self) -> None:
+        rows = self._read_summary_rows()
+        if not rows:
+            return
+
+        fieldnames = sorted({k for row in rows for k in row.keys()})
+        with open(self.summary_csv, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(row)
+
+    def _update_best_round(self, primary_metric: str) -> None:
+        rows = self._read_summary_rows()
+        candidates = []
+        for row in rows:
+            if primary_metric in row and isinstance(row[primary_metric], (int, float)):
+                candidates.append(row)
+
+        if not candidates:
+            return
+
+        best = max(candidates, key=lambda x: x[primary_metric])
+        with open(self.best_round_file, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "primary_metric": primary_metric,
+                    "best_round": best.get("round"),
+                    "best_value": best.get(primary_metric),
+                    "row": best,
+                },
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
 
     def save_config(self, cfg) -> None:
         path = os.path.join(self.output_dir, "config_snapshot.txt")

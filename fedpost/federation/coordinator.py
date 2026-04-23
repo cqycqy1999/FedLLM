@@ -78,6 +78,7 @@ class Coordinator:
             "export_merged_model_dir": export_artifacts.get("merged_model_dir", ""),
         })
 
+        eval_result = None
         if self._should_eval(round_idx):
             eval_result = self.evaluate(round_idx, model_artifacts=export_artifacts)
             if self.recorder is not None:
@@ -85,6 +86,13 @@ class Coordinator:
 
         if self.recorder is not None:
             self.recorder.record_round(round_idx, round_metrics, results)
+            self.recorder.record_round_summary(
+                round_idx=round_idx,
+                round_metrics=round_metrics,
+                eval_result=eval_result,
+                model_artifacts=export_artifacts,
+                primary_metric=self.cfg.eval.summary_primary_metric,
+            )
 
         return round_metrics
         # round_metrics = self._summarize_round(results, agg_metrics)

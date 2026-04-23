@@ -18,10 +18,10 @@ class DPOComboEvaluator(Evaluator):
         super().__init__(cfg, tokenizer, logger)
         self.eval_dir = os.path.join(cfg.output_dir, "eval")
 
-    def _generate_alpaca_outputs(self, model, max_new_tokens: int = 128):
+    def _generate_alpaca_outputs(self, model, max_new_tokens: int):
         eval_set = datasets.load_dataset("tatsu-lab/alpaca_eval", "alpaca_eval")["eval"]
         device = next(model.parameters()).device
-        model.eval()
+        # model.eval()
 
         outputs = []
         for ex in eval_set:
@@ -51,30 +51,46 @@ class DPOComboEvaluator(Evaluator):
         metrics = {}
         artifacts = dict(model_artifacts)
 
+        round_model, round_tokenizer, merged_dir = self.load_round_model(model_artifacts)
+
         if self.cfg.eval.run_alpaca_eval:
-            alpaca_outputs = self._generate_alpaca_outputs(model)
-            runner = AlpacaEvalRunner(os.path.join(self.eval_dir, f"round_{round_idx}", "alpaca_eval"))
-            result = runner.run(alpaca_outputs)
+            outputs = self._generate_alpaca_outputs(
+                round_model,
+                round_tokenizer,
+                max_new_tokens=self.cfg.eval.eval_generation_max_new_tokens,
+            )
+            runner = AlpacaEvalRunner(os.path.join(self.eval_dir, f"round_{round_idx+1}", "alpaca_eval"))
+            result = runner.run(
+                outputs,
+                annotators_config=self.cfg.eval.alpaca_eval_annotators_config,
+            )
             metrics["alpaca_eval_returncode"] = float(result["returncode"])
             artifacts["alpaca_eval_result_dir"] = result["result_dir"]
+            artifacts["alpaca_eval_outputs_path"] = result["outputs_path"]
 
         if self.cfg.eval.run_mt_bench:
-            model_path = model_artifacts.get("merged_model_dir", self.cfg.model.model_name_or_path)
-            runner = MTBenchRunner(os.path.join(self.eval_dir, f"round_{round_idx}", "mt_bench"))
+            runner = MTBenchRunner(os.path.join(self.eval_dir, f"round_{round_idx+1}", "mt_bench"))
             result = runner.run(
-                model_path=model_path,
-                model_id=self.cfg.eval.mt_bench_model_id,
+                model_path=merged_dir,
+                model_id=f"{self.cfg.eval.mt_bench_model_id}_r{round_idx+1}",
+                judge_model=self.cfg.eval.mt_bench_judge_model,
+                parallel=self.cfg.eval.mt_bench_parallel,
             )
             metrics["mt_bench_gen_returncode"] = float(result["gen_returncode"])
             metrics["mt_bench_judge_returncode"] = float(result["judge_returncode"])
+            metrics["mt_bench_show_returncode"] = float(result["show_returncode"])
+            if result["mt_bench_score"] is not None:
+                metrics["mt_bench/score"] = float(result["mt_bench_score"])
             artifacts["mt_bench_answer_file"] = result["answer_file"]
+            artifacts["mt_bench_judgment_file"] = result["judgment_file"]
 
         if self.cfg.eval.run_lm_eval and self.cfg.eval.lm_eval_tasks:
-            model_path = model_artifacts.get("merged_model_dir", self.cfg.model.model_name_or_path)
-            runner = LMEvalRunner(os.path.join(self.eval_dir, f"round_{round_idx}", "lm_eval"))
+            runner = LMEvalRunner(os.path.join(self.eval_dir, f"round_{round_idx+1}", "lm_eval"))
             result = runner.run(
-                model_path=model_path,
+                model_path=merged_dir,
                 tasks=self.cfg.eval.lm_eval_tasks,
+                batch_size=self.cfg.eval.lm_eval_batch_size,
+                device=self.cfg.eval.lm_eval_device,
             )
             metrics["lm_eval_returncode"] = float(result["returncode"])
             if result["parsed"] and "results" in result["parsed"]:

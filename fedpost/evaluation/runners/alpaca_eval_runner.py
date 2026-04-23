@@ -10,7 +10,7 @@ class AlpacaEvalRunner:
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
 
-    def run(self, model_outputs: list[dict], annotators_config: str = "alpaca_eval_gpt4_turbo_fn") -> dict:
+    def run(self, model_outputs: list[dict], annotators_config: str) -> dict:
         outputs_path = os.path.join(self.output_dir, "alpaca_eval_outputs.json")
         with open(outputs_path, "w", encoding="utf-8") as f:
             json.dump(model_outputs, f, ensure_ascii=False, indent=2)
@@ -29,4 +29,5 @@ class AlpacaEvalRunner:
             "stdout": proc.stdout,
             "stderr": proc.stderr,
             "result_dir": result_dir,
+            "outputs_path": outputs_path,
         }

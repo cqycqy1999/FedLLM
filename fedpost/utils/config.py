@@ -77,12 +77,21 @@ class EvalConfig:
 
     run_alpaca_eval: bool = False
     alpaca_eval_model_name: str = "fedpost_model"
+    alpaca_eval_annotators_config: str = "alpaca_eval_gpt4_turbo_fn"
 
     run_mt_bench: bool = False
     mt_bench_model_id: str = "fedpost_model"
+    mt_bench_judge_model: str = "gpt-4"
+    mt_bench_parallel: int = 2
 
     run_lm_eval: bool = False
     lm_eval_tasks: list[str] = field(default_factory=list)
+    lm_eval_batch_size: str = "auto"
+    lm_eval_device: Optional[str] = None
+
+    eval_generation_max_new_tokens: int = 128
+
+    summary_primary_metric: Optional[str] = None
 
 
 @dataclass

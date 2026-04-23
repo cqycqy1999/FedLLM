@@ -43,12 +43,21 @@ data:
 eval:
   eval_every: 1
   save_every: 1
-  evaluator_type: alpaca_eval
+  evaluator_type: sft
+
+  run_alpaca_eval: true
   alpaca_eval_model_name: fedpost_sft_model
+  alpaca_eval_annotators_config: alpaca_eval_gpt4_turbo_fn
+
   run_lm_eval: true
   lm_eval_tasks:
     - hellaswag
     - piqa
+  lm_eval_batch_size: auto
+  lm_eval_device: cuda:0
+
+  eval_generation_max_new_tokens: 128
+  summary_primary_metric: eval/lm_eval/hellaswag/acc_norm
 
 sft:
   max_length: 256
