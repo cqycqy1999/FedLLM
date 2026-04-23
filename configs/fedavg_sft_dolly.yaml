@@ -24,12 +24,22 @@ federated:
   algorithm: fedavg
   num_clients: 4
   clients_per_round: 2
+  proportion: null
   rounds: 3
+  num_rounds: null
   local_epochs: 1
+  num_epochs: null
   local_steps: 10
+  num_steps: null
   sample_mode: uniform
+  client_execution: thread
+  mp_start_method: spawn
   gpu_ids: [1, 2, 3]
   max_parallel_clients: null
+  early_stop_metric: null
+  early_stop_mode: max
+  early_stop_patience: null
+  early_stop_min_delta: 0.0
 
 data:
   task: sft
@@ -44,6 +54,11 @@ eval:
   eval_every: 1
   save_every: 1
   evaluator_type: sft
+  save_adapter_every: 1
+  merge_every: null
+  eval_requires_merged_model: true
+  eval_device: cuda:0
+  fail_on_eval_error: false
 
   run_alpaca_eval: true
   alpaca_eval_model_name: fedpost_sft_model
@@ -62,5 +77,16 @@ eval:
 sft:
   max_length: 256
   lr: 1.0e-4
+  learning_rate: null
   batch_size: 2
   grad_accum_steps: 1
+  optimizer: adamw
+  weight_decay: 0.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+  max_grad_norm: null
+  lr_scheduler: constant
+  learning_rate_decay: 1.0
+  warmup_steps: 0
+  warmup_ratio: 0.0

@@ -67,11 +67,22 @@ class HFModelManager:
 
     def _build_model(self):
         dtype = self._parse_dtype(self.cfg.model.torch_dtype)
+        kwargs = {
+            "trust_remote_code": self.cfg.model.trust_remote_code,
+            "torch_dtype": dtype,
+        }
+        if self.cfg.model.use_flash_attn:
+            kwargs["attn_implementation"] = "flash_attention_2"
+
         model = AutoModelForCausalLM.from_pretrained(
             self.cfg.model.model_name_or_path,
-            trust_remote_code=self.cfg.model.trust_remote_code,
-            torch_dtype=dtype,
+            **kwargs,
         )
+        if self.cfg.model.gradient_checkpointing:
+            if hasattr(model, "gradient_checkpointing_enable"):
+                model.gradient_checkpointing_enable()
+            if hasattr(model, "config"):
+                model.config.use_cache = False
         return model
 
     def _apply_peft_if_needed(self, model):
@@ -123,7 +134,13 @@ class HFModelManager:
             param = named_params[key]
             param.data.copy_(value.to(param.device, dtype=param.dtype))
 
-    def export_round_artifacts(self, model_bundle: ModelBundle, round_dir: str) -> dict[str, str]:
+    def export_round_artifacts(
+        self,
+        model_bundle: ModelBundle,
+        round_dir: str,
+        save_adapter: bool = True,
+        merge_model: bool = False,
+    ) -> dict[str, str]:
         os.makedirs(round_dir, exist_ok=True)
         model = model_bundle.model
         tokenizer = model_bundle.tokenizer
@@ -135,31 +152,35 @@ class HFModelManager:
             adapter_dir = os.path.join(round_dir, "adapter_model")
             merged_dir = os.path.join(round_dir, "merged_model")
 
-            save_adapter_state(
-                model,
-                path=adapter_state_path,
-                adapter_name=self.cfg.peft.adapter_name,
-            )
-            save_adapter_pretrained(
-                model,
-                tokenizer=tokenizer,
-                output_dir=adapter_dir,
-            )
-            save_merged_pretrained(
-                base_model_name_or_path=self.cfg.model.model_name_or_path,
-                adapter_dir=adapter_dir,
-                output_dir=merged_dir,
-                torch_dtype=self._parse_dtype(self.cfg.model.torch_dtype),
-                trust_remote_code=self.cfg.model.trust_remote_code,
-                tokenizer=tokenizer,
-            )
+            if save_adapter or merge_model:
+                save_adapter_state(
+                    model,
+                    path=adapter_state_path,
+                    adapter_name=self.cfg.peft.adapter_name,
+                )
+                save_adapter_pretrained(
+                    model,
+                    tokenizer=tokenizer,
+                    output_dir=adapter_dir,
+                )
+                artifacts["adapter_state_path"] = adapter_state_path
+                artifacts["adapter_dir"] = adapter_dir
 
-            artifacts["adapter_state_path"] = adapter_state_path
-            artifacts["adapter_dir"] = adapter_dir
-            artifacts["merged_model_dir"] = merged_dir
+            if merge_model:
+                save_merged_pretrained(
+                    base_model_name_or_path=self.cfg.model.model_name_or_path,
+                    adapter_dir=adapter_dir,
+                    output_dir=merged_dir,
+                    torch_dtype=self._parse_dtype(self.cfg.model.torch_dtype),
+                    trust_remote_code=self.cfg.model.trust_remote_code,
+                    tokenizer=tokenizer,
+                )
+                artifacts["merged_model_dir"] = merged_dir
             return artifacts
 
         # full fine-tuning fallback
+        if not merge_model:
+            return artifacts
         merged_dir = os.path.join(round_dir, "merged_model")
         model.save_pretrained(merged_dir)
         tokenizer.save_pretrained(merged_dir)

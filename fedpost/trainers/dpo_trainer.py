@@ -9,10 +9,6 @@ from fedpost.utils.registry import Registry
 
 @Registry.register("trainer", "dpo")
 class DPOTrainer(BaseTrainer):
-    def build_optimizer(self):
-        trainable_params = [p for p in self.model.parameters() if p.requires_grad]
-        return torch.optim.AdamW(self.model.parameters(), lr=self.cfg.dpo.lr)
-
     def _sequence_logp(self, model, input_ids, attention_mask, response_mask):
         outputs = model(input_ids=input_ids, attention_mask=attention_mask)
         logits = outputs.logits[:, :-1, :]
@@ -73,24 +69,3 @@ class DPOTrainer(BaseTrainer):
         )
         metrics = {"loss": float(loss.detach().cpu()), **aux}
         return loss, metrics
-
-    def train_one_round(self, dataset, round_idx: int):
-        self.model.train()
-        self.reference_model.eval()
-
-        dataloader = self.build_dataloader(dataset)
-        metrics_list = []
-
-        for step_idx, batch in enumerate(dataloader):
-            self.optimizer.zero_grad()
-            loss, metrics = self.compute_loss(batch)
-            loss.backward()
-            self.optimizer.step()
-            metrics_list.append(metrics)
-
-            if self._reach_local_budget(step_idx):
-                break
-
-        update = self.get_trainable_state()
-        metrics = self._aggregate_metrics(metrics_list)
-        return update, metrics

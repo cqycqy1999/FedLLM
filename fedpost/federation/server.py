@@ -32,9 +32,19 @@ class Server:
         self.global_step += 1
         return agg_metrics
 
-    def export_round_artifacts(self, round_idx: int) -> dict[str, str]:
+    def export_round_artifacts(
+        self,
+        round_idx: int,
+        save_adapter: bool = True,
+        merge_model: bool = False,
+    ) -> dict[str, str]:
         round_dir = os.path.join(self.cfg.output_dir, "exports", f"round_{round_idx + 1}")
-        return self.model_manager.export_round_artifacts(self.model_bundle, round_dir)
+        return self.model_manager.export_round_artifacts(
+            self.model_bundle,
+            round_dir,
+            save_adapter=save_adapter,
+            merge_model=merge_model,
+        )
 
     def save_checkpoint(self, path: str):
         os.makedirs(os.path.dirname(path), exist_ok=True)

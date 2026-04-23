@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-from concurrent.futures import ThreadPoolExecutor
 
 import torch
+from fedpost.federation.executor import build_client_executor
 
 class Coordinator:
     def __init__(
@@ -25,24 +25,33 @@ class Coordinator:
         self.evaluator = evaluator
         self.recorder = recorder
         self.logger = logger
+        self._best_early_stop_value = None
+        self._early_stop_bad_rounds = 0
+        self.client_executor = build_client_executor(cfg)
 
     def train(self):
         all_round_metrics = []
 
-        for round_idx in range(self.cfg.federated.rounds):
-            round_metrics = self.run_round(round_idx)
-            all_round_metrics.append(round_metrics)
+        try:
+            for round_idx in range(self.cfg.federated.rounds):
+                round_metrics = self.run_round(round_idx)
+                all_round_metrics.append(round_metrics)
 
-            # if self._should_eval(round_idx):
-            #     # eval_result = self.evaluate(round_idx)
-            #     # if self.recorder is not None:
-            #     #     self.recorder.record_eval(eval_result)
-            #     ckpt_path = self._ckpt_path(round_idx)
-            #     self.server.save_checkpoint(ckpt_path)
+                # if self._should_eval(round_idx):
+                #     # eval_result = self.evaluate(round_idx)
+                #     # if self.recorder is not None:
+                #     #     self.recorder.record_eval(eval_result)
+                #     ckpt_path = self._ckpt_path(round_idx)
+                #     self.server.save_checkpoint(ckpt_path)
 
-            if self._should_save(round_idx):
-                ckpt_path = self._ckpt_path(round_idx)
-                self.server.save_checkpoint(ckpt_path)
+                if self._should_save(round_idx):
+                    ckpt_path = self._ckpt_path(round_idx)
+                    self.server.save_checkpoint(ckpt_path)
+
+                if self._should_stop_early(round_metrics):
+                    break
+        finally:
+            self.client_executor.shutdown()
 
         return all_round_metrics
 
@@ -59,18 +68,21 @@ class Coordinator:
         for start_idx in range(0, len(selected_clients), max_parallel):
             batch_clients = selected_clients[start_idx:start_idx + max_parallel]
             batch_devices = devices[:len(batch_clients)]
-
-            with ThreadPoolExecutor(max_workers=len(batch_clients)) as executor:
-                futures = [
-                    executor.submit(client.run_round, payload, device)
-                    for client, device in zip(batch_clients, batch_devices)
-                ]
-                results.extend(future.result() for future in futures)
+            results.extend(self.client_executor.run_batch(batch_clients, payload, batch_devices))
 
         results = self.algorithm.after_local_train(results, round_idx)
         agg_metrics = self.algorithm.server_update(self.server, results)
 
-        export_artifacts = self.server.export_round_artifacts(round_idx)
+        should_eval = self._should_eval(round_idx)
+        save_adapter = self._should_save_adapter(round_idx)
+        merge_model = self._should_merge_model(round_idx) or (
+            should_eval and self.cfg.eval.eval_requires_merged_model
+        )
+        export_artifacts = self.server.export_round_artifacts(
+            round_idx,
+            save_adapter=save_adapter,
+            merge_model=merge_model,
+        )
 
         round_metrics = self._summarize_round(results, agg_metrics)
         round_metrics.update({
@@ -79,10 +91,14 @@ class Coordinator:
         })
 
         eval_result = None
-        if self._should_eval(round_idx):
+        if should_eval:
             eval_result = self.evaluate(round_idx, model_artifacts=export_artifacts)
             if self.recorder is not None:
                 self.recorder.record_eval(eval_result)
+            round_metrics.update({
+                f"eval/{key}": value
+                for key, value in eval_result.metrics.items()
+            })
 
         if self.recorder is not None:
             self.recorder.record_round(round_idx, round_metrics, results)
@@ -127,6 +143,20 @@ class Coordinator:
     def _should_save(self, round_idx: int) -> bool:
         return (round_idx + 1) % self.cfg.eval.save_every == 0
 
+    def _should_save_adapter(self, round_idx: int) -> bool:
+        save_every = self.cfg.eval.save_adapter_every
+        if save_every is None:
+            save_every = self.cfg.eval.save_every
+        if save_every == 0:
+            return False
+        return (round_idx + 1) % save_every == 0
+
+    def _should_merge_model(self, round_idx: int) -> bool:
+        merge_every = self.cfg.eval.merge_every
+        if merge_every is None or merge_every == 0:
+            return False
+        return (round_idx + 1) % merge_every == 0
+
     def _ckpt_path(self, round_idx: int) -> str:
         return os.path.join(self.cfg.output_dir, "checkpoints", f"round_{round_idx+1}.pt")
 
@@ -151,5 +181,36 @@ class Coordinator:
     def _max_parallel_clients(self, num_devices: int) -> int:
         configured_limit = self.cfg.federated.max_parallel_clients
         if configured_limit is None:
-            return max(1, min(num_devices, self.cfg.federated.clients_per_round))
-        return max(1, min(configured_limit, num_devices, self.cfg.federated.clients_per_round))
+            return max(1, num_devices)
+        return max(1, min(configured_limit, num_devices))
+
+    def _should_stop_early(self, round_metrics: dict) -> bool:
+        metric_name = self.cfg.federated.early_stop_metric
+        patience = self.cfg.federated.early_stop_patience
+        if metric_name is None or patience is None:
+            return False
+        if metric_name not in round_metrics:
+            return False
+
+        value = round_metrics[metric_name]
+        if not isinstance(value, (int, float)):
+            return False
+
+        if self._best_early_stop_value is None:
+            self._best_early_stop_value = value
+            self._early_stop_bad_rounds = 0
+            return False
+
+        min_delta = self.cfg.federated.early_stop_min_delta
+        if self.cfg.federated.early_stop_mode == "max":
+            improved = value > self._best_early_stop_value + min_delta
+        else:
+            improved = value < self._best_early_stop_value - min_delta
+
+        if improved:
+            self._best_early_stop_value = value
+            self._early_stop_bad_rounds = 0
+            return False
+
+        self._early_stop_bad_rounds += 1
+        return self._early_stop_bad_rounds > patience
