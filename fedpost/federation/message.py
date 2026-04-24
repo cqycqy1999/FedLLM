@@ -14,6 +14,7 @@ class TrainResult:
     stats: dict[str, Any] = field(default_factory=dict)
     success: bool = True
     error_msg: Optional[str] = None
+    error_traceback: Optional[str] = None
 
 
 @dataclass

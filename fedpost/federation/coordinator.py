@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import torch
 from fedpost.federation.executor import build_client_executor
@@ -68,9 +69,21 @@ class Coordinator:
         for start_idx in range(0, len(selected_clients), max_parallel):
             batch_clients = selected_clients[start_idx:start_idx + max_parallel]
             batch_devices = devices[:len(batch_clients)]
-            results.extend(self.client_executor.run_batch(batch_clients, payload, batch_devices))
+            batch_results = self.client_executor.run_batch(batch_clients, payload, batch_devices)
+            results.extend(batch_results)
+
+            if self.cfg.federated.fail_fast:
+                failed_results = [result for result in batch_results if not result.success]
+                if failed_results:
+                    self._persist_failed_round(
+                        round_idx=round_idx,
+                        results=results,
+                        error_message=self._format_failed_clients(failed_results),
+                    )
+                    raise RuntimeError(self._format_failed_clients(failed_results))
 
         results = self.algorithm.after_local_train(results, round_idx)
+        self._validate_round_results(round_idx, results)
         agg_metrics = self.algorithm.server_update(self.server, results)
 
         should_eval = self._should_eval(round_idx)
@@ -126,6 +139,7 @@ class Coordinator:
         
     def _summarize_round(self, results, agg_metrics):
         success_results = [r for r in results if r.success]
+        failed_results = [r for r in results if not r.success]
         avg_loss = 0.0
         if success_results:
             losses = [r.metrics.get("loss", 0.0) for r in success_results]
@@ -134,6 +148,11 @@ class Coordinator:
         return {
             "avg_client_loss": avg_loss,
             "num_selected_clients": len(results),
+            "num_success_clients": len(success_results),
+            "num_failed_clients": len(failed_results),
+            "success_rate": len(success_results) / len(results) if results else 0.0,
+            "successful_client_ids": [result.client_id for result in success_results],
+            "failed_client_ids": [result.client_id for result in failed_results],
             **agg_metrics,
         }
 
@@ -214,3 +233,85 @@ class Coordinator:
 
         self._early_stop_bad_rounds += 1
         return self._early_stop_bad_rounds > patience
+
+    def _validate_round_results(self, round_idx: int, results: list[Any]) -> None:
+        if not results:
+            raise RuntimeError(f"Round {round_idx + 1} produced no client results.")
+
+        success_results = [result for result in results if result.success]
+        failed_results = [result for result in results if not result.success]
+        success_rate = len(success_results) / len(results)
+
+        if not success_results:
+            self._persist_failed_round(
+                round_idx=round_idx,
+                results=results,
+                error_message=self._format_round_failure(
+                    round_idx,
+                    success_rate,
+                    failed_results,
+                ),
+            )
+            raise RuntimeError(
+                self._format_round_failure(round_idx, success_rate, failed_results)
+            )
+
+        if success_rate < self.cfg.federated.min_success_rate:
+            self._persist_failed_round(
+                round_idx=round_idx,
+                results=results,
+                error_message=self._format_round_failure(
+                    round_idx,
+                    success_rate,
+                    failed_results,
+                ),
+            )
+            raise RuntimeError(
+                self._format_round_failure(round_idx, success_rate, failed_results)
+            )
+
+    def _persist_failed_round(self, round_idx: int, results: list[Any], error_message: str) -> None:
+        if self.recorder is None:
+            return
+
+        round_metrics = {
+            "round_status": "failed_pre_aggregation",
+            "round_error": error_message,
+            "num_selected_clients": len(results),
+            "num_success_clients": sum(1 for result in results if result.success),
+            "num_failed_clients": sum(1 for result in results if not result.success),
+            "success_rate": (
+                sum(1 for result in results if result.success) / len(results)
+                if results
+                else 0.0
+            ),
+            "successful_client_ids": [
+                result.client_id for result in results if result.success
+            ],
+            "failed_client_ids": [
+                result.client_id for result in results if not result.success
+            ],
+        }
+        self.recorder.record_round(round_idx, round_metrics, results)
+
+    def _format_failed_clients(self, failed_results: list[Any]) -> str:
+        parts = []
+        for result in failed_results:
+            detail = f"{result.client_id}: {result.error_msg or 'unknown error'}"
+            if result.error_traceback:
+                detail = f"{detail}\n{result.error_traceback}"
+            parts.append(detail)
+        return "Client failure detected:\n\n" + "\n\n".join(parts)
+
+    def _format_round_failure(
+        self,
+        round_idx: int,
+        success_rate: float,
+        failed_results: list[Any],
+    ) -> str:
+        failure_summary = self._format_failed_clients(failed_results) if failed_results else "No client traceback available."
+        return (
+            f"Round {round_idx + 1} success rate {success_rate:.3f} fell below the required "
+            f"threshold {self.cfg.federated.min_success_rate:.3f}.\n\n"
+            f"{failure_summary}"
+        )

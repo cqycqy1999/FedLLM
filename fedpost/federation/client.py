@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import traceback
+
 from fedpost.federation.message import TrainResult
 
 
@@ -20,12 +22,36 @@ class Client:
         self.trainer.set_trainable_state(payload.model_state)
 
     def run_round(self, payload, device=None) -> TrainResult:
-        self.trainer.activate_device(device)
+        result = None
+        activated = False
         try:
+            self.trainer.activate_device(device)
+            activated = True
             self.receive_broadcast(payload)
-            return self.local_train()
+            result = self.local_train()
+        except Exception as exc:
+            result = self._failed_result(exc)
         finally:
-            self.trainer.release_device()
+            if activated:
+                try:
+                    self.trainer.release_device()
+                except Exception as exc:
+                    if result is None or result.success:
+                        result = self._failed_result(exc)
+                    else:
+                        release_traceback = traceback.format_exc()
+                        release_error = f"Device release failed after training error: {exc}"
+                        result.error_msg = (
+                            f"{result.error_msg}\n{release_error}"
+                            if result.error_msg
+                            else release_error
+                        )
+                        result.error_traceback = (
+                            f"{result.error_traceback}\n\nDuring device release:\n{release_traceback}"
+                            if result.error_traceback
+                            else release_traceback
+                        )
+        return result
 
     def local_train(self) -> TrainResult:
         try:
@@ -41,13 +67,17 @@ class Client:
                 metrics=metrics,
                 success=True,
             )
-        except Exception as e:
-            return TrainResult(
-                client_id=self.client_id,
-                round_idx=self._round_idx,
-                num_train_samples=self.context.num_samples,
-                update={},
-                metrics={},
-                success=False,
-                error_msg=str(e),
-            )
+        except Exception as exc:
+            return self._failed_result(exc)
+
+    def _failed_result(self, exc: Exception) -> TrainResult:
+        return TrainResult(
+            client_id=self.client_id,
+            round_idx=self._round_idx,
+            num_train_samples=self.context.num_samples,
+            update={},
+            metrics={},
+            success=False,
+            error_msg=str(exc),
+            error_traceback=traceback.format_exc(),
+        )

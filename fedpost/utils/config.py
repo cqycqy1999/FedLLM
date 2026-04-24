@@ -43,6 +43,8 @@ class FederatedConfig:
     mp_start_method: str = "spawn"
     gpu_ids: list[int] = field(default_factory=list)
     max_parallel_clients: Optional[int] = None
+    fail_fast: bool = False
+    min_success_rate: float = 1.0
     early_stop_metric: Optional[str] = None
     early_stop_mode: str = "max"
     early_stop_patience: Optional[int] = None
@@ -200,6 +202,9 @@ class ConfigLoader:
 
         if cfg.federated.max_parallel_clients is not None and cfg.federated.max_parallel_clients <= 0:
             raise ValueError("max_parallel_clients must be positive when provided")
+
+        if not (0 < cfg.federated.min_success_rate <= 1):
+            raise ValueError("min_success_rate must be in (0, 1]")
 
         if cfg.federated.early_stop_mode not in {"max", "min"}:
             raise ValueError("early_stop_mode must be either 'max' or 'min'")
