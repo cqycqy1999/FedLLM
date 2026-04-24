@@ -109,4 +109,4 @@ class FedAvgAggregator:
 
 @Registry.register("algorithm", "fedavg")
 class FedAvgAlgorithm(FederatedAlgorithm):
-    pass
+    aggregator_cls = FedAvgAggregator

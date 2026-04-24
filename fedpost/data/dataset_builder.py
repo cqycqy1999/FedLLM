@@ -40,6 +40,22 @@ class DatasetBuilder:
     def build_federated_dataset(self) -> FederatedDataset:
         task_dataset = self.build_task_dataset()
 
+        if self.cfg.federated.algorithm == "standalone":
+            client_id = "local_client"
+            client_to_data = {client_id: task_dataset}
+            client_contexts = {
+                client_id: ClientContext(
+                    client_id=client_id,
+                    num_samples=len(task_dataset),
+                    metadata={
+                        "task": self.cfg.task,
+                        "algorithm": self.cfg.federated.algorithm,
+                        "mode": "single_machine_standalone",
+                    },
+                )
+            }
+            return FederatedDataset(client_to_data, client_contexts)
+
         partitioner_cls = Registry.get("partitioner", self.cfg.data.partitioner)
         partitioner = partitioner_cls(self.cfg)
         client_to_indices = partitioner.partition(task_dataset)

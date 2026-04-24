@@ -2,6 +2,8 @@ from __future__ import annotations
 
 
 class FederatedAlgorithm:
+    aggregator_cls = None
+
     def __init__(self, cfg, aggregator):
         self.cfg = cfg
         self.aggregator = aggregator

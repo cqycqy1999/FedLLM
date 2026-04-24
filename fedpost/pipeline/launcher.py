@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import fedpost.algorithms
 import fedpost.trainers
-from fedpost.algorithms.fedavg import FedAvgAggregator
 from fedpost.data.collators.dpo_collator import DPOCollator
 from fedpost.data.collators.sft_collator import SFTCollator
 from fedpost.data.dataset_builder import DatasetBuilder
@@ -29,7 +29,13 @@ class Launcher:
 
         clients = self._build_clients(fed_dataset)
 
-        aggregator = FedAvgAggregator(self.cfg)
+        algo_cls = Registry.get("algorithm", self.cfg.federated.algorithm)
+        aggregator_cls = getattr(algo_cls, "aggregator_cls", None)
+        if aggregator_cls is None:
+            raise ValueError(
+                f"Algorithm {self.cfg.federated.algorithm} does not define aggregator_cls"
+            )
+        aggregator = aggregator_cls(self.cfg)
         server = Server(
             cfg=self.cfg,
             global_model_manager=global_model_manager,
@@ -38,7 +44,6 @@ class Launcher:
         )
 
         sampler = UniformClientSampler(self.cfg)
-        algo_cls = Registry.get("algorithm", self.cfg.federated.algorithm)
         algorithm = algo_cls(self.cfg, aggregator)
 
         evaluator = self._build_evaluator(global_model_bundle.tokenizer)
