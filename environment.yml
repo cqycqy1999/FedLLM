@@ -94,22 +94,36 @@ dependencies:
   - zlib=1.3.2=h25fd6f3_2
   - zstd=1.5.7=hb78ec9c_6
   - pip:
+    - absl-py==2.4.0
     - accelerate==1.13.0
     - aiohappyeyeballs==2.6.1
     - aiohttp==3.13.5
     - aiosignal==1.4.0
+    - alpaca-eval==0.6.6
     - annotated-doc==0.0.4
+    - annotated-types==0.7.0
     - anyio==4.13.0
     - async-timeout==5.0.1
     - attrs==26.1.0
     - certifi==2026.2.25
+    - chardet==5.2.0
     - charset-normalizer==3.4.7
     - click==8.3.2
+    - colorama==0.4.6
+    - contourpy==1.3.2
+    - cycler==0.12.1
+    - dataproperty==1.1.0
     - datasets==4.8.4
     - dill==0.4.1
+    - distro==1.9.0
+    - evaluate==0.4.6
     - exceptiongroup==1.3.1
+    - fastapi==0.136.0
     - filelock==3.29.0
+    - fire==0.7.1
+    - fonttools==4.62.1
     - frozenlist==1.8.0
+    - fschat==0.2.36
     - fsspec==2026.2.0
     - h11==0.16.0
     - hf-xet==1.4.3
@@ -118,13 +132,27 @@ dependencies:
     - huggingface-hub==1.11.0
     - idna==3.11
     - jinja2==3.1.6
+    - jiter==0.14.0
+    - joblib==1.5.3
+    - jsonlines==4.0.0
+    - kiwisolver==1.5.0
+    - latex2mathml==3.81.0
+    - lm-eval==0.4.11
+    - lxml==6.1.0
     - markdown-it-py==4.0.0
+    - markdown2==2.5.5
     - markupsafe==3.0.3
+    - matplotlib==3.10.9
+    - mbstrdecoder==1.1.4
     - mdurl==0.1.2
+    - modelscope==1.36.2
+    - more-itertools==11.0.2
     - mpmath==1.3.0
     - multidict==6.7.1
     - multiprocess==0.70.19
     - networkx==3.4.2
+    - nh3==0.3.4
+    - nltk==3.9.4
     - numpy==2.2.6
     - nvidia-cublas-cu12==12.4.5.8
     - nvidia-cuda-cupti-cu12==12.4.127
@@ -139,30 +167,63 @@ dependencies:
     - nvidia-nccl-cu12==2.21.5
     - nvidia-nvjitlink-cu12==12.4.127
     - nvidia-nvtx-cu12==12.4.127
+    - openai==2.32.0
     - pandas==2.3.3
+    - pathvalidate==3.3.1
+    - patsy==1.0.2
     - peft==0.19.1
+    - pillow==12.2.0
+    - portalocker==3.2.0
+    - prompt-toolkit==3.0.52
     - propcache==0.4.1
     - psutil==7.2.2
+    - pydantic==2.13.3
+    - pydantic-core==2.46.3
     - pygments==2.20.0
+    - pyparsing==3.3.2
+    - pytablewriter==1.2.1
     - python-dateutil==2.9.0.post0
+    - python-dotenv==1.2.2
     - pytz==2026.1.post1
     - pyyaml==6.0.3
     - regex==2026.4.4
     - requests==2.33.1
     - rich==15.0.0
+    - rouge-score==0.1.2
+    - sacrebleu==2.6.0
     - safetensors==0.7.0
+    - scikit-learn==1.7.2
+    - scipy==1.15.3
     - shellingham==1.5.4
+    - shortuuid==1.0.13
     - six==1.17.0
+    - sniffio==1.3.1
+    - sqlitedict==2.1.0
+    - starlette==1.0.0
+    - svgwrite==1.4.3
     - sympy==1.13.1
+    - tabledata==1.3.4
+    - tabulate==0.10.0
+    - tcolorpy==0.1.7
+    - termcolor==3.3.0
+    - threadpoolctl==3.6.0
+    - tiktoken==0.11.0
     - tokenizers==0.22.2
     - torch==2.6.0
     - tqdm==4.67.3
     - transformers==5.5.4
     - triton==3.2.0
+    - typepy==1.3.4
     - typer==0.24.1
     - typing-extensions==4.15.0
+    - typing-inspection==0.4.2
     - tzdata==2026.1
     - urllib3==2.6.3
+    - uvicorn==0.44.0
+    - wavedrom==2.0.3.post3
+    - wcwidth==0.6.0
+    - word2number==1.1
     - xxhash==3.6.0
     - yarl==1.23.0
+    - zstandard==0.25.0
 prefix: /data/conda/envs/cqy202-FedLLM
