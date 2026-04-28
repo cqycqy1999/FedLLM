@@ -1,0 +1,39 @@
+# Finding2 standard academic evaluation template.
+#
+# Standard paths supported:
+# - lm-evaluation-harness for GSM8K / MMLU:
+#     tasks: gsm8k,mmlu
+# - AlpacaEval for instruction-following win-rate:
+#     requires alpaca_eval installation and annotator credentials.
+
+base_model_name_or_path: modelscope/LLM-Research/Meta-Llama-3___1-8B
+dtype: bfloat16
+device_map: auto
+trust_remote_code: false
+
+evaluators:
+  run_lm_eval: true
+  lm_eval_tasks: [gsm8k, mmlu]
+  lm_eval_batch_size: auto
+  lm_eval_device: null
+  run_alpaca_eval: false
+  alpaca_eval_limit: null
+  alpaca_eval_annotators_config: alpaca_eval_gpt4_turbo_fn
+  generation_max_new_tokens: 256
+
+adapters:
+  - name: baseline
+    adapter_dir: outputs/finding2/dynamic_downstream/llama3_8b__alpaca_quick/baseline/adapter_model
+    output_dir: outputs/finding2/evaluation/llama3_8b__alpaca_quick/baseline
+  - name: s5_substituted
+    adapter_dir: outputs/finding2/dynamic_downstream/llama3_8b__alpaca_quick/substituted_S5_anchor_correction_r64_k64/adapter_model
+    output_dir: outputs/finding2/evaluation/llama3_8b__alpaca_quick/s5_substituted
+
+# CLI example:
+#   python -m fedpost.analysis.finding2.evaluate_adapters \
+#     --base_model_name_or_path modelscope/LLM-Research/Meta-Llama-3___1-8B \
+#     --adapter_dir outputs/finding2/dynamic_downstream/llama3_8b__alpaca_quick/baseline/adapter_model \
+#     --output_dir outputs/finding2/evaluation/llama3_8b__alpaca_quick/baseline \
+#     --run_lm_eval \
+#     --lm_eval_tasks gsm8k,mmlu \
+#     --quick

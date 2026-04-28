@@ -17,11 +17,26 @@ class LMEvalRunner:
         tasks: list[str],
         batch_size: str,
         device: Optional[str],
+        peft_path: Optional[str] = None,
+        trust_remote_code: bool = False,
+        dtype: Optional[str] = None,
+        extra_model_args: Optional[dict] = None,
     ) -> list[list[str]]:
         task_str = ",".join(tasks)
+        model_args = [f"pretrained={model_path}"]
+        if peft_path:
+            model_args.append(f"peft={peft_path}")
+        if trust_remote_code:
+            model_args.append("trust_remote_code=True")
+        if dtype:
+            model_args.append(f"dtype={dtype}")
+        if extra_model_args:
+            for key, value in extra_model_args.items():
+                model_args.append(f"{key}={value}")
+
         base_args = [
             "--model", "hf",
-            "--model_args", f"pretrained={model_path}",
+            "--model_args", ",".join(model_args),
             "--tasks", task_str,
             "--batch_size", batch_size,
             "--output_path", self.output_dir,
@@ -41,11 +56,24 @@ class LMEvalRunner:
         tasks: list[str],
         batch_size: str = "auto",
         device: Optional[str] = None,
+        peft_path: Optional[str] = None,
+        trust_remote_code: bool = False,
+        dtype: Optional[str] = None,
+        extra_model_args: Optional[dict] = None,
     ) -> dict:
         last_proc = None
         last_cmd = None
 
-        for cmd in self._candidate_cmds(model_path, tasks, batch_size, device):
+        for cmd in self._candidate_cmds(
+            model_path,
+            tasks,
+            batch_size,
+            device,
+            peft_path=peft_path,
+            trust_remote_code=trust_remote_code,
+            dtype=dtype,
+            extra_model_args=extra_model_args,
+        ):
             proc = subprocess.run(cmd, capture_output=True, text=True)
             last_proc = proc
             last_cmd = cmd

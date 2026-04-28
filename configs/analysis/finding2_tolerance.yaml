@@ -1,0 +1,46 @@
+# Finding2 Part C tolerance curve template.
+# This file records the intended defaults. The current runner is CLI-based.
+
+protocol: finding2_part_c_tolerance_curve
+semantics: all_lora_trainable_noisy_activation_substitution
+
+defaults:
+  model_name_or_path: modelscope/LLM-Research/Meta-Llama-3___1-8B
+  train_dataset_name: tatsu-lab/alpaca
+  train_dataset_config: null
+  train_split: train
+  eval_dataset_name: tatsu-lab/alpaca
+  eval_dataset_config: null
+  eval_split: train
+  train_samples: 128
+  eval_samples: 64
+  max_length: 512
+  batch_size: 1
+  train_steps: 20
+  learning_rate: 1.0e-4
+  weight_decay: 0.0
+  seed: 42
+  dtype: bfloat16
+  device: null
+  device_map: auto
+  trust_remote_code: false
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.0
+  lora_target_modules: null
+  adapter_name: default
+  layer_idx: 16
+  eps_values: [0.0, 0.04, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, 0.32]
+  loss_tolerance_ratio: 1.05
+
+experiments:
+  - name: llama3_8b__alpaca__layer16__tolerance
+    output_dir: outputs/finding2/tolerance_curve/llama3_8b__alpaca__layer16
+
+# Quick smoke example:
+#   python -m fedpost.analysis.finding2.tolerance_curve \
+#     --model_name_or_path modelscope/LLM-Research/Meta-Llama-3___1-8B \
+#     --output_dir outputs/finding2/tolerance_curve/llama3_8b__alpaca_quick \
+#     --layer_idx 16 \
+#     --eps_values 0.0,0.08 \
+#     --quick

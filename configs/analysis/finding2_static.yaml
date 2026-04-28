@@ -1,0 +1,42 @@
+# Reference command for Finding2 Part A static reconstruction.
+# The runner currently takes CLI args; this file records the intended defaults.
+
+input_root: outputs/residual_stream
+output_root: outputs/finding2/static_reconstruction
+layer_indices: [8, 16, 24]
+calibration_vectors: 2000
+eval_vectors: null
+seed: 42
+low_rank_ranks: [16, 32, 64, 128]
+s5_rank: 64
+s5_top_k: 64
+distilled_feature_dim: 128
+neighbor_k: 1
+
+experiments:
+  - name: llama3_8b__alpaca
+    input_path: outputs/residual_stream/llama3_8b__alpaca/hidden_states.pt
+  - name: llama3_8b__gsm8k
+    input_path: outputs/residual_stream/llama3_8b__gsm8k/hidden_states.pt
+  - name: llama3_8b__mmlu
+    input_path: outputs/residual_stream/llama3_8b__mmlu/hidden_states.pt
+  - name: qwen2_7b__alpaca
+    input_path: outputs/residual_stream/qwen2_7b__alpaca/hidden_states.pt
+  - name: qwen2_7b__gsm8k
+    input_path: outputs/residual_stream/qwen2_7b__gsm8k/hidden_states.pt
+  - name: qwen2_7b__mmlu
+    input_path: outputs/residual_stream/qwen2_7b__mmlu/hidden_states.pt
+  - name: mistral_7b__alpaca
+    input_path: outputs/residual_stream/mistral_7b__alpaca/hidden_states.pt
+  - name: mistral_7b__gsm8k
+    input_path: outputs/residual_stream/mistral_7b__gsm8k/hidden_states.pt
+  - name: mistral_7b__mmlu
+    input_path: outputs/residual_stream/mistral_7b__mmlu/hidden_states.pt
+
+# Smoke example:
+#   python -m fedpost.analysis.finding2.static_reconstruction \
+#     --input_path outputs/residual_stream/llama3_8b__alpaca/hidden_states.pt \
+#     --output_dir outputs/finding2/static_reconstruction/llama3_8b__alpaca_quick \
+#     --layer_indices 8,16,24 \
+#     --quick \
+#     --allow_small_data
