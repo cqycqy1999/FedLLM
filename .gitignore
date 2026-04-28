@@ -16,3 +16,6 @@ venv/
 .idea/
 *.log
 *.pdf
+# modelscope
+modelscope/
+outputs/
