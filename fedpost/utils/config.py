@@ -98,9 +98,15 @@ class DataConfig:
     source: str = "hf"          # hf / local
     dataset_name: str = ""
     dataset_split: str = "train"
+    data_path: Optional[str] = None
+    file_type: str = "jsonl"
     partitioner: str = "iid"
     partition_seed: int = 42
     max_samples: Optional[int] = None
+    prompt_field: str = "prompt"
+    response_field: str = "response"
+    chosen_field: str = "chosen"
+    rejected_field: str = "rejected"
 
 
 @dataclass
@@ -127,6 +133,22 @@ class EvalConfig:
     lm_eval_tasks: list[str] = field(default_factory=list)
     lm_eval_batch_size: str = "auto"
     lm_eval_device: Optional[str] = None
+    lm_eval_model_backend: str = "hf"
+    lm_eval_model_args: dict[str, Any] = field(default_factory=dict)
+    lm_eval_dtype: Optional[str] = None
+    lm_eval_num_fewshot: Optional[int] = None
+    lm_eval_limit: Optional[Any] = None
+    lm_eval_log_samples: bool = False
+    lm_eval_include_path: Optional[str] = None
+    lm_eval_use_cache: Optional[str] = None
+    lm_eval_apply_chat_template: bool = False
+    lm_eval_fewshot_as_multiturn: Optional[bool] = None
+    lm_eval_gen_kwargs: Optional[Any] = None
+    lm_eval_seed: Optional[Any] = None
+    lm_eval_predict_only: bool = False
+    lm_eval_timeout: Optional[int] = None
+    lm_eval_allow_adapter: bool = True
+    lm_eval_parallelize: bool = False
 
     eval_generation_max_new_tokens: int = 128
 
@@ -161,12 +183,16 @@ class ConfigLoader:
         if federated_raw.get("num_steps") is not None:
             federated_raw["local_steps"] = federated_raw["num_steps"]
 
+        data_raw = dict(raw["data"])
+        if data_raw.get("data_path") and "source" not in data_raw:
+            data_raw["source"] = "local"
+
         return ExperimentConfig(
             task=raw["task"],
             model=ModelConfig(**raw["model"]),
             peft=PEFTConfig(**raw["peft"]),
             federated=FederatedConfig(**federated_raw),
-            data=DataConfig(**raw["data"]),
+            data=DataConfig(**data_raw),
             eval=EvalConfig(**raw["eval"]),
             output_dir=raw.get("output_dir", "outputs/default"),
             seed=raw.get("seed", 42),
@@ -218,6 +244,15 @@ class ConfigLoader:
         if cfg.federated.mp_start_method not in {"spawn", "forkserver"}:
             raise ValueError("mp_start_method must be either 'spawn' or 'forkserver'")
 
+        if cfg.eval.lm_eval_model_backend not in {"hf", "vllm", "sglang"}:
+            raise ValueError("lm_eval_model_backend must be one of {'hf', 'vllm', 'sglang'}")
+
+        if cfg.eval.lm_eval_num_fewshot is not None and cfg.eval.lm_eval_num_fewshot < 0:
+            raise ValueError("lm_eval_num_fewshot must be non-negative when provided")
+
+        if cfg.eval.lm_eval_timeout is not None and cfg.eval.lm_eval_timeout <= 0:
+            raise ValueError("lm_eval_timeout must be positive when provided")
+
         for field_name in ("save_adapter_every", "merge_every"):
             value = getattr(cfg.eval, field_name)
             if value is not None and value < 0:
@@ -251,5 +286,11 @@ class ConfigLoader:
         if cfg.peft.method == "lora" and not cfg.peft.target_modules:
             raise ValueError("LoRA requires non-empty target_modules")
 
-        if cfg.data.source != "hf":
-            raise ValueError("This upgraded template currently supports data.source='hf' only.")
+        if cfg.data.source not in {"hf", "local"}:
+            raise ValueError("data.source must be either 'hf' or 'local'")
+        if cfg.data.source == "hf" and not cfg.data.dataset_name:
+            raise ValueError("data.dataset_name is required when data.source='hf'")
+        if cfg.data.source == "local" and not cfg.data.data_path:
+            raise ValueError("data.data_path is required when data.source='local'")
+        if cfg.data.file_type not in {"json", "jsonl"}:
+            raise ValueError("data.file_type must be either 'json' or 'jsonl'")

@@ -118,6 +118,7 @@ dependencies:
     - huggingface-hub==1.11.0
     - idna==3.11
     - jinja2==3.1.6
+    - lm_eval[hf]
     - markdown-it-py==4.0.0
     - markupsafe==3.0.3
     - mdurl==0.1.2
@@ -153,6 +154,8 @@ dependencies:
     - safetensors==0.7.0
     - shellingham==1.5.4
     - six==1.17.0
+    - alpaca-eval
+    - fschat[model_worker,llm_judge]
     - sympy==1.13.1
     - tokenizers==0.22.2
     - torch==2.6.0

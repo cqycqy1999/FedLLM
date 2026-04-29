@@ -4,6 +4,8 @@ import fedpost.data.adapters
 
 from fedpost.data.federated_dataset import ClientContext, FederatedDataset
 from fedpost.data.hf_dataset_builder import HFDatasetLoader
+from fedpost.data.io import load_records
+from fedpost.data.processors import DPOSample, SFTSample
 from fedpost.utils.registry import Registry
 
 
@@ -12,8 +14,11 @@ class DatasetBuilder:
         self.cfg = cfg
 
     def build_task_dataset(self) -> list:
+        if self.cfg.data.source == "local":
+            return self._build_local_dataset()
+
         if self.cfg.data.source != "hf":
-            raise ValueError("This template currently supports HF datasets only.")
+            raise ValueError(f"Unsupported data source: {self.cfg.data.source}")
 
         hf_ds = HFDatasetLoader(self.cfg).load()
         adapter_cls = Registry.get("dataset_adapter", self.cfg.data.dataset_name)
@@ -35,6 +40,41 @@ class DatasetBuilder:
 
         if not samples:
             raise ValueError("No valid samples were parsed from the dataset.")
+        return samples
+
+    def _build_local_dataset(self) -> list:
+        if not self.cfg.data.data_path:
+            raise ValueError("data.data_path is required when data.source='local'.")
+
+        records = load_records(self.cfg.data.data_path, self.cfg.data.file_type)
+        if self.cfg.data.max_samples is not None:
+            records = records[:self.cfg.data.max_samples]
+
+        samples = []
+        for rec in records:
+            if self.cfg.task == "sft":
+                prompt = _clean(rec.get(self.cfg.data.prompt_field))
+                response = _clean(rec.get(self.cfg.data.response_field))
+                if prompt and response:
+                    samples.append(SFTSample(prompt=prompt, response=response, metadata={"source": "local"}))
+            elif self.cfg.task == "dpo":
+                prompt = _clean(rec.get(self.cfg.data.prompt_field))
+                chosen = _clean(rec.get(self.cfg.data.chosen_field))
+                rejected = _clean(rec.get(self.cfg.data.rejected_field))
+                if prompt and chosen and rejected:
+                    samples.append(
+                        DPOSample(
+                            prompt=prompt,
+                            chosen=chosen,
+                            rejected=rejected,
+                            metadata={"source": "local"},
+                        )
+                    )
+            else:
+                raise ValueError(f"Unsupported task: {self.cfg.task}")
+
+        if not samples:
+            raise ValueError("No valid local samples were parsed from the dataset.")
         return samples
 
     def build_federated_dataset(self) -> FederatedDataset:
@@ -75,3 +115,10 @@ class DatasetBuilder:
         }
 
         return FederatedDataset(client_to_data, client_contexts)
+
+
+def _clean(value) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None

@@ -70,6 +70,22 @@ eval:
     - piqa
   lm_eval_batch_size: auto
   lm_eval_device: cuda:0
+  lm_eval_model_backend: hf
+  lm_eval_model_args: {}
+  lm_eval_dtype: null
+  lm_eval_num_fewshot: null
+  lm_eval_limit: null
+  lm_eval_log_samples: false
+  lm_eval_include_path: null
+  lm_eval_use_cache: null
+  lm_eval_apply_chat_template: false
+  lm_eval_fewshot_as_multiturn: null
+  lm_eval_gen_kwargs: null
+  lm_eval_seed: 42
+  lm_eval_predict_only: false
+  lm_eval_timeout: null
+  lm_eval_allow_adapter: true
+  lm_eval_parallelize: false
 
   eval_generation_max_new_tokens: 128
   summary_primary_metric: eval/lm_eval/hellaswag/acc_norm

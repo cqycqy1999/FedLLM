@@ -8,7 +8,6 @@ from huggingface_hub import hf_hub_download
 
 from fedpost.evaluation.base import Evaluator
 from fedpost.evaluation.runners.alpaca_eval_runner import AlpacaEvalRunner
-from fedpost.evaluation.runners.lm_eval_runner import LMEvalRunner
 from fedpost.federation.message import EvalResult
 from fedpost.utils.registry import Registry
 
@@ -66,8 +65,6 @@ class SFTGenerationEvaluator(Evaluator):
                 artifacts=artifacts,
             )
 
-        merged_dir = self.require_merged_model_dir(model_artifacts)
-
         if self.cfg.eval.run_alpaca_eval:
             round_model, round_tokenizer, _ = self.load_round_model(model_artifacts)
             try:
@@ -88,22 +85,7 @@ class SFTGenerationEvaluator(Evaluator):
             finally:
                 self.release_round_model(round_model)
 
-        if self.cfg.eval.run_lm_eval and self.cfg.eval.lm_eval_tasks:
-            output_dir = os.path.join(self.eval_dir, f"round_{round_idx+1}", "lm_eval")
-            runner = LMEvalRunner(output_dir)
-            result = runner.run(
-                model_path=merged_dir,
-                tasks=self.cfg.eval.lm_eval_tasks,
-                batch_size=self.cfg.eval.lm_eval_batch_size,
-                device=self.cfg.eval.lm_eval_device,
-            )
-            self.record_runner_result("lm_eval", result, metrics, artifacts, output_dir)
-            if result["parsed"] and "results" in result["parsed"]:
-                for task_name, task_metrics in result["parsed"]["results"].items():
-                    for metric_name, metric_value in task_metrics.items():
-                        if isinstance(metric_value, (float, int)):
-                            metrics[f"lm_eval/{task_name}/{metric_name}"] = float(metric_value)
-            artifacts["lm_eval_result_path"] = result["result_path"]
+        self.run_lm_eval(round_idx, model_artifacts, metrics, artifacts)
 
         return EvalResult(
             round_idx=round_idx,
