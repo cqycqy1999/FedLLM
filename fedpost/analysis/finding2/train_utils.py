@@ -178,21 +178,52 @@ def fit_synthesizer_from_hidden_trace(
     layer_idx: int,
     calibration_vectors: int,
     seed: int,
-) -> Synthesizer:
+    allow_small_calibration: bool = False,
+) -> tuple[Synthesizer, dict[str, Any]]:
+    if calibration_vectors <= 0:
+        raise ValueError(f"calibration_vectors must be positive, got {calibration_vectors}.")
+
     payload = torch.load(hidden_trace_path, map_location="cpu")
     hidden = payload["hidden_states"]
+    if hidden.ndim != 4:
+        raise ValueError(
+            f"Expected hidden_states with shape [samples, probes, layers, hidden_dim], "
+            f"got {tuple(hidden.shape)} from {hidden_trace_path}."
+        )
     hidden_flat = hidden.reshape(-1, hidden.shape[2], hidden.shape[3]).contiguous()
     num_vectors = hidden_flat.shape[0]
+    used_vectors = calibration_vectors
+    warning = None
     if calibration_vectors > num_vectors:
-        raise ValueError(
+        if not allow_small_calibration:
+            raise ValueError(
+                f"Requested {calibration_vectors} calibration vectors from {hidden_trace_path}, "
+                f"but only {num_vectors} are available. Re-run with more hidden-state samples, "
+                f"lower --calibration_vectors, or pass --allow_small_calibration for an explicit "
+                f"small-data run."
+            )
+        used_vectors = num_vectors
+        warning = (
             f"Requested {calibration_vectors} calibration vectors from {hidden_trace_path}, "
-            f"but only {num_vectors} are available."
+            f"but only {num_vectors} are available; using all available vectors because "
+            f"small calibration is explicitly allowed."
         )
+        print(f"WARNING: {warning}")
+
     indices = list(range(num_vectors))
     random.Random(seed).shuffle(indices)
-    loader = HiddenTraceLoader(hidden_flat, indices[:calibration_vectors])
+    loader = HiddenTraceLoader(hidden_flat, indices[:used_vectors])
     synthesizer.fit(loader, layer_idx=layer_idx, model=None)
-    return synthesizer
+    fit_info = {
+        "hidden_trace_path": hidden_trace_path,
+        "hidden_shape": list(hidden.shape),
+        "flattened_vectors": num_vectors,
+        "requested_calibration_vectors": calibration_vectors,
+        "used_calibration_vectors": used_vectors,
+        "allow_small_calibration": allow_small_calibration,
+        "warning": warning,
+    }
+    return synthesizer, fit_info
 
 
 def build_synthesizer(

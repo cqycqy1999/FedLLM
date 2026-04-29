@@ -222,9 +222,17 @@ def _resolve_split_sizes(cfg: StaticReconstructionConfig, num_vectors: int) -> t
         requested_eval = min(32, max(1, num_vectors - requested_calibration))
     else:
         requested_calibration = cfg.calibration_vectors
-        requested_eval = cfg.eval_vectors
-        if requested_eval is None:
+        if cfg.eval_vectors is None:
+            if requested_calibration >= num_vectors:
+                if not cfg.allow_small_data:
+                    raise ValueError(
+                        f"Need more than {requested_calibration} vectors to keep a non-empty eval split, "
+                        f"but only {num_vectors} are available. Use --allow_small_data for smoke tests."
+                    )
+                requested_calibration = min(requested_calibration, max(1, num_vectors // 2))
             requested_eval = num_vectors - requested_calibration
+        else:
+            requested_eval = cfg.eval_vectors
 
     if requested_calibration <= 0 or requested_eval <= 0:
         raise ValueError("calibration_vectors and eval_vectors must be positive.")

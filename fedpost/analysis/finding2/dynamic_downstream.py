@@ -64,12 +64,14 @@ def run_dynamic_downstream(args) -> dict[str, Any]:
         distilled_feature_dim=args.distilled_feature_dim,
         neighbor_k=args.neighbor_k,
     )
-    synthesizer = fit_synthesizer_from_hidden_trace(
+    allow_small_calibration = bool(args.quick or args.allow_small_calibration)
+    synthesizer, synthesizer_fit = fit_synthesizer_from_hidden_trace(
         hidden_trace_path=args.hidden_trace_path,
         synthesizer=synthesizer,
         layer_idx=args.layer_idx,
         calibration_vectors=args.calibration_vectors,
         seed=cfg.seed,
+        allow_small_calibration=allow_small_calibration,
     )
 
     substituted = _run_variant(
@@ -91,7 +93,9 @@ def run_dynamic_downstream(args) -> dict[str, Any]:
             "synthesizer": args.synthesizer,
             "hidden_trace_path": args.hidden_trace_path,
             "calibration_vectors": args.calibration_vectors,
+            "allow_small_calibration": allow_small_calibration,
         },
+        "synthesizer_fit": synthesizer_fit,
         "baseline": baseline,
         "substituted": substituted,
         "loss_delta": substituted["eval"]["loss_mean"] - baseline["eval"]["loss_mean"],
@@ -244,6 +248,15 @@ def parse_args():
     parser.add_argument("--layer_idx", type=int, required=True)
     parser.add_argument("--synthesizer", default="S5_anchor_correction")
     parser.add_argument("--calibration_vectors", type=int, default=2000)
+    parser.add_argument(
+        "--allow_small_calibration",
+        action="store_true",
+        help=(
+            "Allow using fewer calibration vectors than requested. "
+            "The runner records requested/used/available counts in the result JSON. "
+            "--quick enables this automatically."
+        ),
+    )
     parser.add_argument("--low_rank_rank", type=int, default=64)
     parser.add_argument("--s5_rank", type=int, default=64)
     parser.add_argument("--s5_top_k", type=int, default=64)

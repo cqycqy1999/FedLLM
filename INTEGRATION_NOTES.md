@@ -43,6 +43,12 @@ This implementation is staged. The first committed stage is deterministic offlin
   - writes machine-readable JSON and `.pt` results
   - emits warnings for threshold violations
 
+- `fedpost.analysis.finding2.run_static_suite`
+  - Part A suite runner over `configs/analysis/finding2_static.yaml`
+  - runs the configured model × dataset trace matrix
+  - resolves boundary layers with `auto_quarters` as `{L/4, L/2, 3L/4}` using transformer block count `L`
+  - writes `suite_summary.json` and `suite_summary.csv`
+
 ## Determinism Policy
 
 - Default seed is `42`.
@@ -68,7 +74,7 @@ Cost formulas are encoded in each synthesizer class docstring and method comment
 Protocol implemented now:
 
 1. Load `hidden_states.pt`.
-2. Select layer indices, default `{8, 16, 24}`.
+2. Select boundary layer indices. The suite default is `auto_quarters`: `{L/4, L/2, 3L/4}`.
 3. Split calibration and evaluation tensors deterministically.
 4. Fit each synthesizer on calibration traces.
 5. Build anchors from evaluation traces.
@@ -82,6 +88,12 @@ Threshold policy:
 
 - S0 Exact: `mu_mean < 1e-5`, otherwise hard failure when `--fail_on_threshold` is set.
 - S5 Anchor+Correction: `mu_mean <= 0.06`, otherwise warning is always recorded.
+
+Formal matrix:
+
+- `configs/analysis/finding2_static.yaml` enumerates Llama-3-8B, Qwen2-7B, and Mistral-7B over Alpaca, GSM8K, and MMLU traces.
+- Formal Part A requires `required_samples=1000` hidden-state sequences per trace.
+- Current residual-stream traces in this workspace contain 512 sequences per task, so the suite fails by default and requires either recollecting 1000 sequences or passing `--allow_small_data` for an explicitly marked small-data run.
 
 ## Part B Dynamic Downstream
 
@@ -102,6 +114,7 @@ Implementation plan:
 - Block-wise: full LoRA training with one selected boundary activation substituted per step or according to a configured boundary schedule.
 - The first implementation reports deterministic training/eval loss and saves the adapter. External GSM8K / AlpacaEval quality should be run through the existing evaluation stack after adapter export.
 - Claims such as "S5 <= 1pt GSM8K gap" require running the full configured evaluation; quick loss-only smoke tests are not sufficient for the paper conclusion.
+- Synthesizer fitting uses `calibration_vectors=2000` by default. If the hidden trace has fewer vectors, full runs fail loudly; `--quick` or explicit `--allow_small_calibration` may use all available vectors and records requested/used/available counts in the result JSON.
 
 ## Part C Tolerance Curve
 
@@ -120,5 +133,6 @@ Protocol:
 - Missing files raise exceptions.
 - Missing layers raise exceptions.
 - Insufficient calibration/evaluation data raises by default.
-- `--allow_small_data` is required for smoke tests on small traces.
+- `--quick` or `--allow_small_data` is required for Part A smoke tests on small traces.
+- `--quick` or `--allow_small_calibration` is required before Part B can use fewer calibration vectors than requested.
 - Threshold violations are written to result JSON and printed.

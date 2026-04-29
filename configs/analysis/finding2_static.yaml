@@ -1,9 +1,17 @@
-# Reference command for Finding2 Part A static reconstruction.
-# The runner currently takes CLI args; this file records the intended defaults.
+# Finding2 Part A static reconstruction suite.
+#
+# Run the full configured matrix:
+#   python -m fedpost.analysis.finding2.run_static_suite \
+#     --config configs/analysis/finding2_static.yaml
+#
+# Current residual_stream traces in this repo have 512 samples per task. Use
+# --allow_small_data only for smoke/small-data analysis; formal Part A requires
+# required_samples=1000 per Alpaca/GSM8K/MMLU trace.
 
 input_root: outputs/residual_stream
 output_root: outputs/finding2/static_reconstruction
-layer_indices: [8, 16, 24]
+required_samples: 1000
+layer_indices: auto_quarters
 calibration_vectors: 2000
 eval_vectors: null
 seed: 42
@@ -15,28 +23,45 @@ neighbor_k: 1
 
 experiments:
   - name: llama3_8b__alpaca
+    model_alias: llama3_8b
+    dataset_alias: alpaca
     input_path: outputs/residual_stream/llama3_8b__alpaca/hidden_states.pt
   - name: llama3_8b__gsm8k
+    model_alias: llama3_8b
+    dataset_alias: gsm8k
     input_path: outputs/residual_stream/llama3_8b__gsm8k/hidden_states.pt
   - name: llama3_8b__mmlu
+    model_alias: llama3_8b
+    dataset_alias: mmlu
     input_path: outputs/residual_stream/llama3_8b__mmlu/hidden_states.pt
   - name: qwen2_7b__alpaca
+    model_alias: qwen2_7b
+    dataset_alias: alpaca
     input_path: outputs/residual_stream/qwen2_7b__alpaca/hidden_states.pt
   - name: qwen2_7b__gsm8k
+    model_alias: qwen2_7b
+    dataset_alias: gsm8k
     input_path: outputs/residual_stream/qwen2_7b__gsm8k/hidden_states.pt
   - name: qwen2_7b__mmlu
+    model_alias: qwen2_7b
+    dataset_alias: mmlu
     input_path: outputs/residual_stream/qwen2_7b__mmlu/hidden_states.pt
   - name: mistral_7b__alpaca
+    model_alias: mistral_7b
+    dataset_alias: alpaca
     input_path: outputs/residual_stream/mistral_7b__alpaca/hidden_states.pt
   - name: mistral_7b__gsm8k
+    model_alias: mistral_7b
+    dataset_alias: gsm8k
     input_path: outputs/residual_stream/mistral_7b__gsm8k/hidden_states.pt
   - name: mistral_7b__mmlu
+    model_alias: mistral_7b
+    dataset_alias: mmlu
     input_path: outputs/residual_stream/mistral_7b__mmlu/hidden_states.pt
 
 # Smoke example:
-#   python -m fedpost.analysis.finding2.static_reconstruction \
-#     --input_path outputs/residual_stream/llama3_8b__alpaca/hidden_states.pt \
-#     --output_dir outputs/finding2/static_reconstruction/llama3_8b__alpaca_quick \
-#     --layer_indices 8,16,24 \
+#   python -m fedpost.analysis.finding2.run_static_suite \
+#     --config configs/analysis/finding2_static.yaml \
+#     --experiment_name llama3_8b__alpaca \
 #     --quick \
 #     --allow_small_data

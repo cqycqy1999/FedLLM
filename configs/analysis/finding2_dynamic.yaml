@@ -30,6 +30,7 @@ defaults:
   lora_target_modules: null
   adapter_name: default
   calibration_vectors: 2000
+  allow_small_calibration: false
   synthesizer: S5_anchor_correction
   s5_rank: 64
   s5_top_k: 64
@@ -48,3 +49,7 @@ experiments:
 #     --layer_idx 16 \
 #     --synthesizer S5_anchor_correction \
 #     --quick
+#
+# Notes:
+# - Full runs keep allow_small_calibration=false so missing calibration data fails loudly.
+# - --quick enables small calibration automatically and records requested/used counts in JSON.
