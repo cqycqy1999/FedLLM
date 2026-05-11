@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Any
+from typing import Optional
 import yaml
-import os
 
 
 @dataclass
@@ -52,6 +51,26 @@ class FederatedConfig:
 
 
 @dataclass
+class BPFedPEFTConfig:
+    num_blocks: Optional[int] = None
+    block_end_layers: Optional[list[int]] = None
+    overlap_layers: int = 1
+    vector_path: Optional[str] = None
+    include_unindexed_parameters: bool = False
+    use_block_forward: bool = True
+
+    anchoring_rounds_per_block: int = 1
+    anchoring_local_epochs: int = 1
+
+    min_local_steps: int = 1
+    local_stability_threshold: float = 0.995
+    min_rounds_per_block: int = 1
+    max_rounds_per_block: int = 3
+    global_stability_alpha: float = 0.6
+    global_stability_delta: float = 1e-3
+
+
+@dataclass
 class SFTConfig:
     max_length: int = 128
     lr: float = 1e-4
@@ -71,28 +90,6 @@ class SFTConfig:
 
 
 @dataclass
-class DPOConfig:
-    max_length: int = 128
-    max_prompt_length: int = 64
-    lr: float = 1e-5
-    learning_rate: Optional[float] = None
-    batch_size: int = 1
-    grad_accum_steps: int = 1
-    optimizer: str = "adamw"
-    weight_decay: float = 0.0
-    adam_beta1: float = 0.9
-    adam_beta2: float = 0.999
-    adam_epsilon: float = 1e-8
-    max_grad_norm: Optional[float] = None
-    lr_scheduler: str = "constant"
-    learning_rate_decay: float = 1.0
-    warmup_steps: int = 0
-    warmup_ratio: float = 0.0
-    beta: float = 0.1
-    reference_mode: str = "frozen_copy"
-
-
-@dataclass
 class DataConfig:
     task: str = "sft"
     source: str = "hf"          # hf / local
@@ -105,54 +102,39 @@ class DataConfig:
     max_samples: Optional[int] = None
     prompt_field: str = "prompt"
     response_field: str = "response"
-    chosen_field: str = "chosen"
-    rejected_field: str = "rejected"
+    semantic_label_field: str = "semantic_label"
+    dirichlet_alpha: float = 0.3
 
 
 @dataclass
 class EvalConfig:
     eval_every: int = 1
     save_every: int = 1
-    evaluator_type: str = "alpaca_eval"
     save_adapter_every: Optional[int] = None
     merge_every: Optional[int] = None
     eval_requires_merged_model: bool = True
-    eval_device: Optional[str] = None
-    fail_on_eval_error: bool = False
-
-    run_alpaca_eval: bool = False
-    alpaca_eval_model_name: str = "fedpost_model"
-    alpaca_eval_annotators_config: str = "alpaca_eval_gpt4_turbo_fn"
-
-    run_mt_bench: bool = False
-    mt_bench_model_id: str = "fedpost_model"
-    mt_bench_judge_model: str = "gpt-4"
-    mt_bench_parallel: int = 2
-
-    run_lm_eval: bool = False
-    lm_eval_tasks: list[str] = field(default_factory=list)
-    lm_eval_batch_size: str = "auto"
-    lm_eval_device: Optional[str] = None
-    lm_eval_model_backend: str = "hf"
-    lm_eval_model_args: dict[str, Any] = field(default_factory=dict)
-    lm_eval_dtype: Optional[str] = None
-    lm_eval_num_fewshot: Optional[int] = None
-    lm_eval_limit: Optional[Any] = None
-    lm_eval_log_samples: bool = False
-    lm_eval_include_path: Optional[str] = None
-    lm_eval_use_cache: Optional[str] = None
-    lm_eval_apply_chat_template: bool = False
-    lm_eval_fewshot_as_multiturn: Optional[bool] = None
-    lm_eval_gen_kwargs: Optional[Any] = None
-    lm_eval_seed: Optional[Any] = None
-    lm_eval_predict_only: bool = False
-    lm_eval_timeout: Optional[int] = None
-    lm_eval_allow_adapter: bool = True
-    lm_eval_parallelize: bool = False
-
-    eval_generation_max_new_tokens: int = 128
-
     summary_primary_metric: Optional[str] = None
+    tasks: list[str] = field(default_factory=list)
+    max_samples: Optional[int] = None
+    batch_size: int = 1
+    prompt_max_length: Optional[int] = None
+    max_new_tokens: int = 256
+    temperature: float = 0.0
+    top_p: float = 1.0
+    do_sample: bool = False
+    file_type: str = "jsonl"
+    dataset_dir: Optional[str] = None
+    humaneval_dataset: str = "openai/openai_humaneval"
+    humaneval_split: str = "test"
+    humaneval_path: Optional[str] = None
+    humaneval_timeout: float = 3.0
+    finqa_dataset: str = "ChanceFocus/flare-finqa"
+    finqa_split: str = "test"
+    finqa_path: Optional[str] = None
+    medqa_dataset: str = "bigbio/med_qa"
+    medqa_config: str = "med_qa_en_4options_source"
+    medqa_split: str = "test"
+    medqa_path: Optional[str] = None
 
 
 @dataclass
@@ -163,10 +145,10 @@ class ExperimentConfig:
     federated: FederatedConfig
     data: DataConfig
     eval: EvalConfig
+    bpfedpeft: BPFedPEFTConfig = field(default_factory=BPFedPEFTConfig)
     output_dir: str = "outputs/default"
     seed: int = 42
     sft: Optional[SFTConfig] = None
-    dpo: Optional[DPOConfig] = None
 
 
 class ConfigLoader:
@@ -194,15 +176,15 @@ class ConfigLoader:
             federated=FederatedConfig(**federated_raw),
             data=DataConfig(**data_raw),
             eval=EvalConfig(**raw["eval"]),
+            bpfedpeft=BPFedPEFTConfig(**raw.get("bpfedpeft", {})),
             output_dir=raw.get("output_dir", "outputs/default"),
             seed=raw.get("seed", 42),
             sft=SFTConfig(**raw["sft"]) if raw.get("sft") else None,
-            dpo=DPOConfig(**raw["dpo"]) if raw.get("dpo") else None,
         )
 
     @staticmethod
     def validate(cfg: ExperimentConfig) -> None:
-        if cfg.task not in {"sft", "dpo"}:
+        if cfg.task not in {"sft"}:
             raise ValueError(f"Unsupported task: {cfg.task}")
 
         if cfg.peft.method not in {"none", "lora"}:
@@ -244,27 +226,57 @@ class ConfigLoader:
         if cfg.federated.mp_start_method not in {"spawn", "forkserver"}:
             raise ValueError("mp_start_method must be either 'spawn' or 'forkserver'")
 
-        if cfg.eval.lm_eval_model_backend not in {"hf", "vllm", "sglang"}:
-            raise ValueError("lm_eval_model_backend must be one of {'hf', 'vllm', 'sglang'}")
-
-        if cfg.eval.lm_eval_num_fewshot is not None and cfg.eval.lm_eval_num_fewshot < 0:
-            raise ValueError("lm_eval_num_fewshot must be non-negative when provided")
-
-        if cfg.eval.lm_eval_timeout is not None and cfg.eval.lm_eval_timeout <= 0:
-            raise ValueError("lm_eval_timeout must be positive when provided")
-
         for field_name in ("save_adapter_every", "merge_every"):
             value = getattr(cfg.eval, field_name)
             if value is not None and value < 0:
                 raise ValueError(f"{field_name} must be non-negative when provided")
+        if cfg.eval.eval_every < 0 or cfg.eval.save_every < 0:
+            raise ValueError("eval_every and save_every must be non-negative")
+        if cfg.eval.max_samples is not None and cfg.eval.max_samples <= 0:
+            raise ValueError("eval.max_samples must be positive when provided")
+        if cfg.eval.batch_size <= 0:
+            raise ValueError("eval.batch_size must be positive")
+        if cfg.eval.prompt_max_length is not None and cfg.eval.prompt_max_length <= 0:
+            raise ValueError("eval.prompt_max_length must be positive when provided")
+        if cfg.eval.max_new_tokens <= 0:
+            raise ValueError("eval.max_new_tokens must be positive")
+        if cfg.eval.temperature < 0:
+            raise ValueError("eval.temperature must be non-negative")
+        if not (0 < cfg.eval.top_p <= 1):
+            raise ValueError("eval.top_p must be in (0, 1]")
+        if cfg.eval.humaneval_timeout <= 0:
+            raise ValueError("eval.humaneval_timeout must be positive")
+        cfg.eval.tasks = [str(task).lower() for task in cfg.eval.tasks]
+        unsupported_eval_tasks = set(cfg.eval.tasks) - {"humaneval", "finqa", "medqa"}
+        if unsupported_eval_tasks:
+            raise ValueError(f"Unsupported eval tasks: {sorted(unsupported_eval_tasks)}")
+
+        if cfg.federated.algorithm == "bpfedpeft":
+            if cfg.peft.method != "lora":
+                raise ValueError("BP-FedPEFT requires peft.method='lora'")
+            if cfg.bpfedpeft.num_blocks is None and not cfg.bpfedpeft.block_end_layers:
+                raise ValueError("BP-FedPEFT requires num_blocks or block_end_layers")
+            if cfg.bpfedpeft.num_blocks is not None and cfg.bpfedpeft.num_blocks <= 0:
+                raise ValueError("bpfedpeft.num_blocks must be positive")
+            if cfg.bpfedpeft.overlap_layers < 0:
+                raise ValueError("bpfedpeft.overlap_layers must be non-negative")
+            if cfg.bpfedpeft.anchoring_rounds_per_block <= 0:
+                raise ValueError("bpfedpeft.anchoring_rounds_per_block must be positive")
+            if cfg.bpfedpeft.anchoring_local_epochs <= 0:
+                raise ValueError("bpfedpeft.anchoring_local_epochs must be positive")
+            if cfg.bpfedpeft.min_local_steps <= 0:
+                raise ValueError("bpfedpeft.min_local_steps must be positive")
+            if cfg.bpfedpeft.min_rounds_per_block <= 0:
+                raise ValueError("bpfedpeft.min_rounds_per_block must be positive")
+            if cfg.bpfedpeft.max_rounds_per_block < cfg.bpfedpeft.min_rounds_per_block:
+                raise ValueError("bpfedpeft.max_rounds_per_block must be >= min_rounds_per_block")
+            if not (0.0 <= cfg.bpfedpeft.global_stability_alpha < 1.0):
+                raise ValueError("bpfedpeft.global_stability_alpha must be in [0, 1)")
 
         if cfg.task == "sft" and cfg.sft is None:
             raise ValueError("SFT config is required when task='sft'")
 
-        if cfg.task == "dpo" and cfg.dpo is None:
-            raise ValueError("DPO config is required when task='dpo'")
-
-        train_cfg = cfg.sft if cfg.task == "sft" else cfg.dpo
+        train_cfg = cfg.sft
         if train_cfg is not None:
             if train_cfg.batch_size <= 0:
                 raise ValueError("batch_size must be positive")

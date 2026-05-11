@@ -19,6 +19,8 @@ class Client:
     def receive_broadcast(self, payload):
         self._round_idx = payload.round_idx
         self._algo_state = payload.algo_state
+        if hasattr(self.trainer, "set_algorithm_state"):
+            self.trainer.set_algorithm_state(payload.algo_state)
         self.trainer.set_trainable_state(payload.model_state)
 
     def run_round(self, payload, device=None) -> TrainResult:

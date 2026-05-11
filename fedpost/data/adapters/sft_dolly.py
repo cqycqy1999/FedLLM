@@ -27,6 +27,3 @@ class DollySFTAdapter(BaseDatasetAdapter):
                 "source_dataset": "databricks/databricks-dolly-15k",
             },
         )
-
-    def to_dpo_sample(self, record: dict):
-        return None

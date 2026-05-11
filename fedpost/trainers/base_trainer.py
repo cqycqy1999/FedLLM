@@ -12,7 +12,6 @@ class BaseTrainer:
         self.cfg = cfg
         self.model = model_bundle.model
         self.tokenizer = model_bundle.tokenizer
-        self.reference_model = model_bundle.reference_model
         self.model_state_spec = model_bundle.model_state_spec
         self.model_manager = model_manager
         self.collator = collator
@@ -21,8 +20,6 @@ class BaseTrainer:
         # Keep inactive client models on CPU; each round moves active clients onto a target device.
         self.device = torch.device("cpu")
         self.model.to(self.device)
-        if self.reference_model is not None:
-            self.reference_model.to(self.device)
 
         self.optimizer = None
         self.lr_scheduler = None
@@ -62,8 +59,6 @@ class BaseTrainer:
             torch.cuda.set_device(target_device)
 
         self.model.to(target_device)
-        if self.reference_model is not None:
-            self.reference_model.to(target_device)
 
         self.device = target_device
         self.optimizer = self.build_optimizer()
@@ -76,8 +71,6 @@ class BaseTrainer:
             return
 
         self.model.to("cpu")
-        if self.reference_model is not None:
-            self.reference_model.to("cpu")
         self.device = torch.device("cpu")
         torch.cuda.empty_cache()
 
@@ -125,8 +118,6 @@ class BaseTrainer:
 
     def _run_local_training(self, dataset, round_idx: int):
         self.model.train()
-        if self.reference_model is not None:
-            self.reference_model.eval()
 
         dataloader = self.build_dataloader(dataset)
         total_update_steps = self._estimate_total_update_steps(len(dataloader))
@@ -230,7 +221,7 @@ class BaseTrainer:
         return max(1, total_update_steps)
 
     def _train_cfg(self):
-        return self.cfg.sft if self.cfg.task == "sft" else self.cfg.dpo
+        return self.cfg.sft
 
     def _learning_rate(self) -> float:
         train_cfg = self._train_cfg()

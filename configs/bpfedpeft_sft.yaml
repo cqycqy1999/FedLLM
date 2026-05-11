@@ -1,0 +1,73 @@
+task: sft
+output_dir: outputs/bpfedpeft_qwen3_codealpaca_quick
+seed: 42
+
+model:
+  model_name_or_path: Qwen/Qwen3-0.6B
+  tokenizer_name_or_path: Qwen/Qwen3-0.6B
+  trust_remote_code: true
+  torch_dtype: bfloat16
+  use_flash_attn: false
+  gradient_checkpointing: true
+
+peft:
+  method: lora
+  r: 8
+  alpha: 16
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+federated:
+  algorithm: bpfedpeft
+  num_clients: 2
+  clients_per_round: 1
+  rounds: 6
+  local_epochs: 1
+  local_steps: 1
+  sample_mode: uniform
+  client_execution: thread
+  fail_fast: true
+
+bpfedpeft:
+  block_end_layers: [10, 19, 28]
+  overlap_layers: 1
+  vector_path: null
+  anchoring_rounds_per_block: 1
+  anchoring_local_epochs: 1
+  min_local_steps: 1
+  local_stability_threshold: 0.995
+  min_rounds_per_block: 1
+  max_rounds_per_block: 1
+  global_stability_alpha: 0.6
+  global_stability_delta: 1.0e-3
+  use_block_forward: true
+
+data:
+  task: sft
+  source: local
+  data_path: data/codealpaca_quick_2clients
+  file_type: jsonl
+  partitioner: semantic_dirichlet
+  partition_seed: 42
+  dirichlet_alpha: 0.3
+  semantic_label_field: semantic_label
+  prompt_field: prompt
+  response_field: response
+
+eval:
+  eval_every: 0
+  save_every: 0
+
+sft:
+  max_length: 256
+  lr: 1.0e-4
+  batch_size: 1
+  grad_accum_steps: 1
+  optimizer: adamw

@@ -1,0 +1,8 @@
+{"prompt": "Explain federated learning in one sentence.", "response": "Federated learning trains a shared model across clients while keeping each client's data local."}
+{"prompt": "What does PEFT reduce during LLM adaptation?", "response": "PEFT reduces the number of trainable parameters, lowering optimizer memory and communication costs."}
+{"prompt": "Why use block-wise progressive training?", "response": "It lets constrained clients update only a small section of the model at a time instead of traversing the full backbone."}
+{"prompt": "Define a LoRA adapter briefly.", "response": "A LoRA adapter learns low-rank update matrices that are injected into selected neural network layers."}
+{"prompt": "What is a communication round in federated learning?", "response": "A communication round broadcasts model state to clients, runs local training, and aggregates the returned updates."}
+{"prompt": "What problem does BP-FedPEFT target?", "response": "BP-FedPEFT targets the memory wall created by full forward passes during federated PEFT of large language models."}
+{"prompt": "How can clients stop local block training early?", "response": "They can monitor representation or update stability and stop once the active block changes very little."}
+{"prompt": "What is an overlapping block boundary?", "response": "It is a shared layer between adjacent blocks that helps preserve continuity in the hidden representation hand-off."}

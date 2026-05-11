@@ -2,11 +2,8 @@ from __future__ import annotations
 
 import fedpost.algorithms
 import fedpost.trainers
-from fedpost.data.collators.dpo_collator import DPOCollator
 from fedpost.data.collators.sft_collator import SFTCollator
 from fedpost.data.dataset_builder import DatasetBuilder
-from fedpost.evaluation.dpo_eval import DPOComboEvaluator
-from fedpost.evaluation.sft_eval import SFTGenerationEvaluator
 from fedpost.federation.client import Client
 from fedpost.federation.coordinator import Coordinator
 from fedpost.federation.sampler import UniformClientSampler
@@ -67,21 +64,19 @@ class Launcher:
 
     def _build_clients(self, fed_dataset):
         clients = []
-        trainer_cls = Registry.get("trainer", self.cfg.task)
+        trainer_name = self.cfg.task
+        if self.cfg.federated.algorithm == "bpfedpeft" and self.cfg.task == "sft":
+            trainer_name = "bpfedpeft_sft"
+        trainer_cls = Registry.get("trainer", trainer_name)
 
         for client_id in fed_dataset.get_client_ids():
             client_model_manager = HFModelManager(self.cfg)
             model_bundle = client_model_manager.build()
             tokenizer = model_bundle.tokenizer
 
-            if self.cfg.task == "sft":
-                collator = SFTCollator(tokenizer, max_length=self.cfg.sft.max_length)
-            else:
-                collator = DPOCollator(
-                    tokenizer,
-                    max_length=self.cfg.dpo.max_length,
-                    max_prompt_length=self.cfg.dpo.max_prompt_length,
-                )
+            if self.cfg.task != "sft":
+                raise ValueError("This anonymous BP-FedPEFT release keeps only the SFT path.")
+            collator = SFTCollator(tokenizer, max_length=self.cfg.sft.max_length)
 
             trainer = trainer_cls(
                 cfg=self.cfg,
@@ -99,6 +94,8 @@ class Launcher:
         return clients
 
     def _build_evaluator(self, tokenizer):
-        if self.cfg.task == "sft":
-            return SFTGenerationEvaluator(self.cfg, tokenizer)
-        return DPOComboEvaluator(self.cfg, tokenizer)
+        if not self.cfg.eval.tasks:
+            return None
+        from fedpost.evaluation.paper import PaperBenchmarkEvaluator
+
+        return PaperBenchmarkEvaluator(self.cfg, tokenizer)

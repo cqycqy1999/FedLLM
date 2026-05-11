@@ -1,5 +1,8 @@
 *.jsonl
 *.json
+!examples/
+!examples/*.jsonl
+!configs/*.json
 *.pt
 *.pth
 *.safetensors
@@ -17,4 +20,5 @@ venv/
 *.log
 *.pdf
 outputs/
+condaenv.*.requirements.txt
 modelscope/

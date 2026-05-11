@@ -1,0 +1,30 @@
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from fedpost.pipeline.launcher import Launcher
+from fedpost.utils.config import ConfigLoader
+from fedpost.utils.seed import set_seed
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run BP-FedPEFT SFT.")
+    parser.add_argument("--config", type=str, required=True)
+    args = parser.parse_args()
+
+    cfg = ConfigLoader.from_yaml(args.config)
+    ConfigLoader.validate(cfg)
+    set_seed(cfg.seed)
+
+    launcher = Launcher(cfg)
+    results = launcher.run()
+    print("BP-FedPEFT training finished.")
+    print(results)
+
+
+if __name__ == "__main__":
+    main()

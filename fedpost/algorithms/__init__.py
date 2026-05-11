@@ -1,3 +1,3 @@
-from fedpost.algorithms import fedavg, standalone
+from fedpost.algorithms import bpfedpeft, fedavg, standalone
 
-__all__ = ["fedavg", "standalone"]
+__all__ = ["bpfedpeft", "fedavg", "standalone"]

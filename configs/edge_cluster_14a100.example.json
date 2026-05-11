@@ -1,0 +1,164 @@
+{
+  "server": {
+    "role": "aggregator",
+    "host": "a100-server",
+    "device": "cuda:0",
+    "note": "Run scripts/run_cluster_rounds.py here."
+  },
+  "clients": [
+    {
+      "client_id": "tx2_00",
+      "tier": "TX2",
+      "memory_gb": 8,
+      "host": "tx2-00",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/tx2_00",
+      "remote_data": "/data/bpfedpeft/client_000.jsonl"
+    },
+    {
+      "client_id": "tx2_01",
+      "tier": "TX2",
+      "memory_gb": 8,
+      "host": "tx2-01",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/tx2_01",
+      "remote_data": "/data/bpfedpeft/client_001.jsonl"
+    },
+    {
+      "client_id": "tx2_02",
+      "tier": "TX2",
+      "memory_gb": 8,
+      "host": "tx2-02",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/tx2_02",
+      "remote_data": "/data/bpfedpeft/client_002.jsonl"
+    },
+    {
+      "client_id": "xavier_nx_00",
+      "tier": "Xavier NX",
+      "memory_gb": 8,
+      "host": "nx-00",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/xavier_nx_00",
+      "remote_data": "/data/bpfedpeft/client_003.jsonl"
+    },
+    {
+      "client_id": "xavier_nx_01",
+      "tier": "Xavier NX",
+      "memory_gb": 8,
+      "host": "nx-01",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/xavier_nx_01",
+      "remote_data": "/data/bpfedpeft/client_004.jsonl"
+    },
+    {
+      "client_id": "xavier_nx_02",
+      "tier": "Xavier NX",
+      "memory_gb": 8,
+      "host": "nx-02",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/xavier_nx_02",
+      "remote_data": "/data/bpfedpeft/client_005.jsonl"
+    },
+    {
+      "client_id": "agx_xavier_00",
+      "tier": "AGX Xavier",
+      "memory_gb": 32,
+      "host": "agx-xavier-00",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/agx_xavier_00",
+      "remote_data": "/data/bpfedpeft/client_006.jsonl"
+    },
+    {
+      "client_id": "agx_xavier_01",
+      "tier": "AGX Xavier",
+      "memory_gb": 32,
+      "host": "agx-xavier-01",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/agx_xavier_01",
+      "remote_data": "/data/bpfedpeft/client_007.jsonl"
+    },
+    {
+      "client_id": "agx_xavier_02",
+      "tier": "AGX Xavier",
+      "memory_gb": 32,
+      "host": "agx-xavier-02",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/agx_xavier_02",
+      "remote_data": "/data/bpfedpeft/client_008.jsonl"
+    },
+    {
+      "client_id": "agx_xavier_03",
+      "tier": "AGX Xavier",
+      "memory_gb": 32,
+      "host": "agx-xavier-03",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/agx_xavier_03",
+      "remote_data": "/data/bpfedpeft/client_009.jsonl"
+    },
+    {
+      "client_id": "agx_xavier_04",
+      "tier": "AGX Xavier",
+      "memory_gb": 32,
+      "host": "agx-xavier-04",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/agx_xavier_04",
+      "remote_data": "/data/bpfedpeft/client_010.jsonl"
+    },
+    {
+      "client_id": "agx_orin_00",
+      "tier": "AGX Orin",
+      "memory_gb": 64,
+      "host": "agx-orin-00",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/agx_orin_00",
+      "remote_data": "/data/bpfedpeft/client_011.jsonl"
+    },
+    {
+      "client_id": "agx_orin_01",
+      "tier": "AGX Orin",
+      "memory_gb": 64,
+      "host": "agx-orin-01",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/agx_orin_01",
+      "remote_data": "/data/bpfedpeft/client_012.jsonl"
+    },
+    {
+      "client_id": "agx_orin_02",
+      "tier": "AGX Orin",
+      "memory_gb": 64,
+      "host": "agx-orin-02",
+      "user": "edge",
+      "device": "cuda:0",
+      "remote_repo": "/opt/bpfedpeft",
+      "remote_work_dir": "/tmp/bpfedpeft/agx_orin_02",
+      "remote_data": "/data/bpfedpeft/client_013.jsonl"
+    }
+  ]
+}

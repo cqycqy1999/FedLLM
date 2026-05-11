@@ -165,7 +165,6 @@ class Recorder:
             "num_tensors": num_tensors,
             "total_numel": total_numel,
             "total_bytes": total_bytes,
-            "sample_keys": list(update.keys())[:10],
         }
 
     def _to_jsonable(self, value: Any) -> Any:

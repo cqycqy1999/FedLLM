@@ -18,7 +18,6 @@ from fedpost.models.peft_utils import (
     save_merged_pretrained,
     validate_lora_targets,
 )
-from fedpost.models.reference_model import ReferenceModelManager
 from fedpost.models.state_spec import ModelStateSpec
 
 
@@ -27,7 +26,6 @@ class ModelBundle:
     model: Any
     tokenizer: Any
     model_state_spec: ModelStateSpec
-    reference_model: Any = None
 
 
 class HFModelManager:
@@ -45,17 +43,12 @@ class HFModelManager:
             stats = count_parameters(model)
             print(f"Trainable params: {stats['trainable']} / {stats['total']}")
 
-        reference_model = None
-        if self.cfg.task == "dpo":
-            reference_model = ReferenceModelManager(self.cfg).build(model)
-
         state_spec = self._build_state_spec(model)
 
         return ModelBundle(
             model=model,
             tokenizer=tokenizer,
             model_state_spec=state_spec,
-            reference_model=reference_model,
         )
 
     def _build_tokenizer(self):

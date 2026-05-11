@@ -35,6 +35,8 @@ class Coordinator:
 
         try:
             for round_idx in range(self.cfg.federated.rounds):
+                if hasattr(self.algorithm, "should_stop_training") and self.algorithm.should_stop_training():
+                    break
                 round_metrics = self.run_round(round_idx)
                 all_round_metrics.append(round_metrics)
 
@@ -50,6 +52,8 @@ class Coordinator:
                     self.server.save_checkpoint(ckpt_path)
 
                 if self._should_stop_early(round_metrics):
+                    break
+                if hasattr(self.algorithm, "should_stop_training") and self.algorithm.should_stop_training():
                     break
         finally:
             self.client_executor.shutdown()
@@ -157,9 +161,15 @@ class Coordinator:
         }
 
     def _should_eval(self, round_idx: int) -> bool:
+        if self.evaluator is None:
+            return False
+        if self.cfg.eval.eval_every == 0:
+            return False
         return (round_idx + 1) % self.cfg.eval.eval_every == 0
 
     def _should_save(self, round_idx: int) -> bool:
+        if self.cfg.eval.save_every == 0:
+            return False
         return (round_idx + 1) % self.cfg.eval.save_every == 0
 
     def _should_save_adapter(self, round_idx: int) -> bool:
